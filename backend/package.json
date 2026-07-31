@@ -9,6 +9,9 @@
   "keywords": [],
   "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1"
+    "better-sqlite3": "^13.0.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
   }
 }
