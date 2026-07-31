@@ -203,7 +203,7 @@ function App() {
 
       Swal.fire({
         title: "Eliminada",
-        text: `Matrícula ${plateToDelete} revocada`,
+        text: `Matrícula ${plateToDelete} eliminada`,
         toast: true,
         position: "top-end",
         icon: "info",
