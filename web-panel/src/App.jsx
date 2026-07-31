@@ -291,7 +291,7 @@ function App() {
               <label htmlFor="plate" className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
                 Nueva Matrícula
               </label>
-              <div className="flex gap-2">
+              <div className="flex md:flex-row gap-2 flex-col ">
                 <input
                   type="text"
                   id="plate"
@@ -394,15 +394,16 @@ function App() {
                         <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded">
                           OCR: {item.confidence ? (item.confidence * 100).toFixed(0) : '--'}%
                         </span>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider  ${
+                          isAuthorized
+                            ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20'
+                            : 'bg-red-400/10 text-red-400 border border-red-400/20'
+                        }`}>
+                          {item.status || 'Desconocido'}
+                        </span>
                       </div>
 
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        isAuthorized
-                          ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20'
-                          : 'bg-red-400/10 text-red-400 border border-red-400/20'
-                      }`}>
-                        {item.status || 'Desconocido'}
-                      </span>
+                     
                     </li>
                   );
                 })}
@@ -422,7 +423,7 @@ function App() {
             ) : (
               <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 
-                <div className="w-40 h-40 flex items-center justify-center">
+                <div className="md:w-40 md:h-40 flex items-center justify-center">
                   <Chart 
                     options={chartOptions} 
                     series={chartSeries} 

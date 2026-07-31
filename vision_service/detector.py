@@ -7,18 +7,12 @@ from ultralytics import YOLO
 from paddleocr import PaddleOCR
 import logging
 
-# ==========================================
-# CONFIGURACIÓN GENERAL
-# ==========================================
 BACKEND_URL = "http://localhost:3000/api/v1/access"
 CAMERA_ID = "BARRERA_ACCESO_01"
 COOLDOWN_SECONDS = 10
 
 processed_plates = {}
 
-# ==========================================
-# MODELOS DE IA
-# ==========================================
 vehicle_model = YOLO('yolov8n.pt')
 plate_model = YOLO('license_plate_detector.pt')
 
@@ -134,6 +128,10 @@ def ocr_worker():
                 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
                 enhanced_plate = clahe.apply(filtered_plate)
 
+                cv2.imwrite("debug_car_crop.jpg", car_crop)
+                cv2.imwrite("debug_plate_only.jpg", plate_only_crop)
+                cv2.imwrite("debug_plate_final.jpg", enhanced_plate)
+
                 ocr_results = reader.ocr(enhanced_plate, cls=False)
 
                 if ocr_results and ocr_results[0]:
@@ -166,7 +164,7 @@ def ocr_worker():
         with detection_lock:
             current_detections = frame_render_data
 
-        time.sleep(0.5)
+        time.sleep(1)
 
 def main():
     global latest_frame, current_detections
