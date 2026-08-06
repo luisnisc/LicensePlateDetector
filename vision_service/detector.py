@@ -17,6 +17,7 @@ from paddleocr import PaddleOCR
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
     CAMERA_ID: str = "BARRERA_ACCESO_01"
+    # VIDEO_SOURCE: str = "rtsp://admin:Filip2807@192.168.42.201:554/Streaming/Channels/101"
     VIDEO_SOURCE = 0
 
     CONF_VEHICLE: float = 0.50
@@ -371,6 +372,17 @@ class ALPRSystem:
                 self.current_detections = render_data
 
     def _open_capture(self):
+        # import os
+        #         # Fuerza el transporte por TCP para evitar corrupción de frames por pérdida de paquetes UDP
+        # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+
+        # cap = cv2.VideoCapture(Config.VIDEO_SOURCE, cv2.CAP_FFMPEG)
+
+        #         # Fundamental para RTSP: evita que OpenCV almacene frames antiguos en memoria
+        #         # Garantiza que cap.read() devuelva siempre el frame más reciente
+        # cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # return cap
         return cv2.VideoCapture(Config.VIDEO_SOURCE)
 
     def start(self):

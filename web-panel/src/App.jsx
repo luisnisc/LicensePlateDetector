@@ -279,7 +279,6 @@ function App() {
     <div className="min-h-screen bg-zinc-950 flex justify-center p-4 md:p-8 font-sans text-zinc-100">
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
-        {/* COLUMNA IZQUIERDA: Formulario + Whitelist */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8">
           <div className="mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-white">Access Control</h1>
@@ -387,9 +386,9 @@ function App() {
                   return (
                     <li
                       key={item.id || `log-${item.plate}-${index}`}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-950/50 border border-zinc-800 p-3.5 rounded-xl gap-3"
+                      className=" bg-zinc-950/50 border border-zinc-800 p-3.5 rounded-xl gap-3"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-row justify-between items-center gap-4">
                         <span className="font-mono text-zinc-100 text-lg tracking-widest">{item.plate}</span>
                         <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded">
                           OCR: {item.confidence ? (item.confidence * 100).toFixed(0) : '--'}%
@@ -402,7 +401,7 @@ function App() {
                           {item.status || 'Desconocido'}
                         </span>
                       </div>
-
+                      <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">{item.timestamp}</span>
                      
                     </li>
                   );
