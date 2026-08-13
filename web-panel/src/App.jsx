@@ -23,13 +23,13 @@ function App() {
 
   const [, setTick] = useState(0);
 
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setTick(t => t + 1);
-      }, 5000);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 5000);
 
-      return () => clearInterval(interval);
-    }, []);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -38,6 +38,20 @@ function App() {
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  const customSwal = useMemo(() => {
+    return Swal.mixin({
+      background: isDarkMode ? '#18181b' : '#ffffff',
+      color: isDarkMode ? '#f4f4f5' : '#18181b',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: isDarkMode ? '#27272a' : '#e4e4e7',
+      customClass: {
+        popup: 'rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl',
+        cancelButton: 'font-semibold',
+        confirmButton: 'font-semibold'
+      }
+    });
+  }, [isDarkMode]);
 
   useEffect(() => {
     function onConnect() {
@@ -185,7 +199,7 @@ function App() {
     const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
     if (!PLATE_REGEX.test(cleanPlate)) {
-      Swal.fire({
+      customSwal.fire({
         title: "Formato Inválido",
         text: "La matrícula debe tener entre 5 y 9 caracteres (números y letras).",
         toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true
@@ -193,7 +207,7 @@ function App() {
       return;
     }
     if (!ownerName.trim()) {
-      Swal.fire({
+      customSwal.fire({
         title: "Dato faltante",
         text: "Debe introducir el nombre del titular.",
         toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true
@@ -208,7 +222,7 @@ function App() {
         valid_until: validUntil ? new Date(validUntil).toISOString() : null
       });
 
-      Swal.fire({
+      customSwal.fire({
         title: "Éxito",
         text: `Matrícula guardada`,
         toast: true, position: "top-end", icon: "success", showConfirmButton: false, timer: 1500, timerProgressBar: true
@@ -217,7 +231,7 @@ function App() {
       setOwnerName('');
       setValidUntil('');
     } catch (error) {
-      Swal.fire({
+      customSwal.fire({
         title: "Error",
         text: error.response?.data?.error || "Error al añadir",
         toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true
@@ -229,27 +243,27 @@ function App() {
     e.preventDefault();
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
-      Swal.fire({
+      customSwal.fire({
         title: "Eliminada", text: `Matrícula ${plateToDelete} eliminada`, toast: true, position: "top-end", icon: "info", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
     } catch (error) {
-      Swal.fire({
+      customSwal.fire({
         title: "Error", text: error.response?.data?.error || "Error al eliminar", toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
     }
   };
 
   const cleanUpLogsUI = async () => {
-    const result = await Swal.fire({
+    const result = await customSwal.fire({
       title: '¿Estás seguro?', text: 'Se eliminarán todos los registros de acceso.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, borrar todo', cancelButtonText: 'Cancelar', confirmButtonColor: '#ef4444'
     });
 
     if (result.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/v1/logs`);
-        Swal.fire({ title: 'Borrado correcto', text: 'Registros eliminados.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+        customSwal.fire({ title: 'Borrado correcto', text: 'Registros eliminados.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
       } catch (error) {
-        Swal.fire({ title: 'Error', text: error.response?.data?.error || 'Fallo de conexión', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+        customSwal.fire({ title: 'Error', text: error.response?.data?.error || 'Fallo de conexión', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
       }
     }
   };
