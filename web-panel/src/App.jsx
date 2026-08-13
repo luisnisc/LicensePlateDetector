@@ -17,6 +17,29 @@ function App() {
   const [whitelist, setWhitelist] = useState([]);
   const [logs, setLogs] = useState([]);
 
+  // Detección dinámica de tema oscuro/claro del sistema o navegador
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  const [, setTick] = useState(0);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setTick(t => t + 1);
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setIsDarkMode(e.matches);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   useEffect(() => {
     function onConnect() {
       console.log('Conectado al servidor de WebSockets');
@@ -91,14 +114,22 @@ function App() {
 
   const chartSeries = [stats.allowed, stats.denied];
 
-  const chartOptions = {
+  // Configuración del gráfico con colores dinámicos reactivos al tema
+  const chartOptions = useMemo(() => ({
     chart: { type: 'donut', background: 'transparent' },
     labels: ['Permitidos', 'Denegados'],
     colors: ['#10b981', '#ef4444'],
-    stroke: { show: true, colors: ['#09090b'], width: 2 },
+    stroke: {
+      show: true,
+      colors: [isDarkMode ? '#18181b' : '#ffffff'],
+      width: 2
+    },
     dataLabels: { enabled: false },
     legend: { show: false },
-    tooltip: { theme: 'dark', y: { formatter: (val) => `${val} accesos` } },
+    tooltip: {
+      theme: isDarkMode ? 'dark' : 'light',
+      y: { formatter: (val) => `${val} accesos` }
+    },
     plotOptions: {
       pie: {
         donut: {
@@ -108,14 +139,14 @@ function App() {
             total: {
               show: true,
               label: 'TOTAL',
-              color: '#71717a',
+              color: isDarkMode ? '#a1a1aa' : '#71717a',
               fontSize: '10px',
               fontFamily: 'monospace',
               formatter: () => logs.length
             },
             value: {
               show: true,
-              color: '#f4f4f5',
+              color: isDarkMode ? '#f4f4f5' : '#18181b',
               fontSize: '18px',
               fontWeight: 700,
               fontFamily: 'monospace'
@@ -124,28 +155,28 @@ function App() {
         }
       }
     }
-  };
+  }), [isDarkMode, logs.length]);
 
   const handlePlateChange = (e) => {
-      const inputPlate = e.target.value.toUpperCase();
-      setPlate(inputPlate);
+    const inputPlate = e.target.value.toUpperCase();
+    setPlate(inputPlate);
 
-      const existingRecord = whitelist.find(item => item.plate === inputPlate);
+    const existingRecord = whitelist.find(item => item.plate === inputPlate);
 
-      if (existingRecord) {
-        setOwnerName(existingRecord.owner_name || '');
+    if (existingRecord) {
+      setOwnerName(existingRecord.owner_name || '');
 
-        if (existingRecord.valid_until) {
-          const date = new Date(existingRecord.valid_until);
-          const tzOffset = date.getTimezoneOffset() * 60000;
-          const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+      if (existingRecord.valid_until) {
+        const date = new Date(existingRecord.valid_until);
+        const tzOffset = date.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 
-          setValidUntil(localISOTime);
-        } else {
-          setValidUntil('');
-        }
+        setValidUntil(localISOTime);
+      } else {
+        setValidUntil('');
       }
-    };
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -155,7 +186,7 @@ function App() {
       Swal.fire({
         title: "Formato Inválido",
         text: "La matrícula debe tener entre 5 y 9 caracteres (números y letras).",
-        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true
       });
       return;
     }
@@ -163,7 +194,7 @@ function App() {
       Swal.fire({
         title: "Dato faltante",
         text: "Debe introducir el nombre del titular.",
-        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true
       });
       return;
     }
@@ -178,7 +209,7 @@ function App() {
       Swal.fire({
         title: "Éxito",
         text: `Matrícula guardada`,
-        toast: true, position: "top-end", icon: "success", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        toast: true, position: "top-end", icon: "success", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
       setPlate('');
       setOwnerName('');
@@ -187,7 +218,7 @@ function App() {
       Swal.fire({
         title: "Error",
         text: error.response?.data?.error || "Error al añadir",
-        toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
     }
   };
@@ -197,44 +228,45 @@ function App() {
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
       Swal.fire({
-        title: "Eliminada", text: `Matrícula ${plateToDelete} eliminada`, toast: true, position: "top-end", icon: "info", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        title: "Eliminada", text: `Matrícula ${plateToDelete} eliminada`, toast: true, position: "top-end", icon: "info", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
     } catch (error) {
       Swal.fire({
-        title: "Error", text: error.response?.data?.error || "Error al eliminar", toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+        title: "Error", text: error.response?.data?.error || "Error al eliminar", toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true
       });
     }
   };
 
   const cleanUpLogsUI = async () => {
     const result = await Swal.fire({
-      title: '¿Estás seguro?', text: 'Se eliminarán todos los registros de acceso.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, borrar todo', cancelButtonText: 'Cancelar', confirmButtonColor: '#ef4444', cancelButtonColor: '#27272a', background: '#18181b', color: '#ffffff'
+      title: '¿Estás seguro?', text: 'Se eliminarán todos los registros de acceso.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, borrar todo', cancelButtonText: 'Cancelar', confirmButtonColor: '#ef4444'
     });
 
     if (result.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/v1/logs`);
-        Swal.fire({ title: 'Borrado correcto', text: 'Registros eliminados.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true, background: '#18181b', color: '#ffffff' });
+        Swal.fire({ title: 'Borrado correcto', text: 'Registros eliminados.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
       } catch (error) {
-        Swal.fire({ title: 'Error', text: error.response?.data?.error || 'Fallo de conexión', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true, background: '#18181b', color: '#ffffff' });
+        Swal.fire({ title: 'Error', text: error.response?.data?.error || 'Fallo de conexión', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
       }
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex justify-center p-4 md:p-8 font-sans text-zinc-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex justify-center p-4 md:p-8 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8">
+        {/* Panel Izquierdo: Formulario y Whitelist */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl dark:shadow-2xl p-6 sm:p-8 transition-colors">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Añadir accesos</h1>
-            <p className="text-sm text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">Añadir accesos</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Gestión de matrículas y titulares</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8 bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8 bg-zinc-50 dark:bg-zinc-950/30 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/50 transition-colors">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Matrícula</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">Matrícula</label>
                 <input
                   type="text"
                   value={plate}
@@ -242,49 +274,48 @@ function App() {
                   placeholder="AB-123-CD"
                   maxLength={11}
                   required
-                  className="w-full bg-zinc-950 border border-zinc-800 text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-600 font-mono tracking-widest"
+                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono tracking-widest"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Titular</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">Titular</label>
                 <input
                   type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)}
                   placeholder="Nombre y Apellidos" required
-                  className="w-full bg-zinc-950 border border-zinc-800 text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-600"
+                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Caducidad (Opcional)</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">Caducidad (Opcional)</label>
               <input
                 type="datetime-local" value={validUntil} onChange={(e) => setValidUntil(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-300 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all [color-scheme:dark]"
+                className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-300 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
             <button
               type="submit"
-              className="mt-2 w-full bg-zinc-100 text-zinc-900 px-6 py-2.5 rounded-lg font-semibold hover:bg-white active:scale-95 transition-all cursor-pointer"
+              className="mt-2 w-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-6 py-2.5 rounded-lg font-semibold hover:bg-zinc-800 dark:hover:bg-white active:scale-95 transition-all cursor-pointer"
             >
               Guardar / Actualizar Permiso
             </button>
           </form>
 
           <div>
-            <h2 className="text-xs font-medium text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center">
+            <h2 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center transition-colors">
               <span>Permitidos</span>
-              <span className="bg-zinc-800 text-zinc-300 py-0.5 px-2 rounded-full text-[10px]">{whitelist.length}</span>
+              <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] transition-colors">{whitelist.length}</span>
             </h2>
 
             {whitelist.length === 0 ? (
-              <div className="text-center py-8 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
+              <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors">
                 Base de datos vacía
               </div>
             ) : (
-              <ul className="max-h-[500px] overflow-y-auto flex flex-col gap-2 pr-1">
+              <ul className="max-h-[500px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
                 {whitelist.map(item => {
                   const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
 
-                  // Formateamos la fecha y la hora directamente con el objeto Date nativo si existe valid_until
                   const formattedDate = item.valid_until
                     ? new Date(item.valid_until).toLocaleDateString('es-ES')
                     : '';
@@ -294,22 +325,22 @@ function App() {
                     : '';
 
                   return (
-                    <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-950/50 border border-zinc-800 p-3 rounded-xl hover:border-zinc-700 transition-colors group gap-3">
+                    <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3">
                       <div className="flex flex-col gap-1">
-                        <span className="font-mono text-zinc-200 tracking-wider font-bold">{item.plate}</span>
-                        <span className="text-xs text-zinc-400">{item.owner_name}</span>
+                        <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors">{item.plate}</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors">{item.owner_name}</span>
                       </div>
                       <div className="flex items-center gap-3 justify-between sm:justify-end">
                         {item.valid_until ? (
-                          <span className={`text-[10px] px-2 py-1 rounded-md font-mono ${isExpired ? 'bg-red-900/30 text-red-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-mono transition-colors ${isExpired ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
                             {isExpired ? 'CADUCADO' : `${formattedDate} ${formattedTime}`}
                           </span>
                         ) : (
-                          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">PERMANENTE</span>
+                          <span className="text-[10px] bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-1 rounded-md transition-colors">PERMANENTE</span>
                         )}
                         <button
                           onClick={(e) => handleDelete(e, item.plate)}
-                          className="text-zinc-500 hover:text-red-400 hover:bg-red-400/10 p-1.5 rounded-lg transition-all cursor-pointer"
+                          className="text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/10 p-1.5 rounded-lg transition-all cursor-pointer"
                           title="Revocar acceso"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,18 +356,19 @@ function App() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col gap-6">
+        {/* Panel Derecho: Actividad y Estadísticas */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl dark:shadow-2xl p-6 sm:p-8 flex flex-col gap-6 transition-colors">
           <div>
             <div className="mb-6 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">Actividad</h2>
-                <p className="text-sm text-zinc-400 mt-1">Registro de accesos</p>
+                <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">Actividad</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Registro de accesos</p>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={cleanUpLogsUI} className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-400/10 text-red-400 border border-red-400/20 hover:bg-red-400/20 transition-colors cursor-pointer">
+                <button onClick={cleanUpLogsUI} className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-50 dark:bg-red-400/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-400/20 hover:bg-red-100 dark:hover:bg-red-400/20 transition-colors cursor-pointer">
                   Limpiar
                 </button>
-                <span className="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-full border border-emerald-400/20">
+                <span className="flex items-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 px-2.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-400/20 transition-colors">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -347,27 +379,27 @@ function App() {
             </div>
 
             {logs.length === 0 ? (
-              <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl h-48 flex items-center justify-center">
+              <div className="text-center py-12 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl h-48 flex items-center justify-center transition-colors">
                 Esperando detecciones...
               </div>
             ) : (
-              <ul className="max-h-[350px] overflow-y-auto flex flex-col gap-2 pr-1">
+              <ul className="max-h-[350px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
                 {logs.map((item, index) => {
                   const isAuthorized = item.status?.toLowerCase().includes('allowed') || item.status === 'OK';
                   return (
-                    <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-950/50 border border-zinc-800 p-3.5 rounded-xl gap-3">
+                    <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl gap-3 transition-colors">
                       <div className="flex flex-row justify-between items-center gap-4">
-                        <span className="font-mono text-zinc-100 text-lg tracking-widest">{item.plate}</span>
-                        <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded">
+                        <span className="font-mono text-zinc-900 dark:text-zinc-100 text-lg tracking-widest transition-colors">{item.plate}</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">
                           OCR: {item.confidence ? (item.confidence * 100).toFixed(0) : '--'}%
                         </span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                          isAuthorized ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20' : 'bg-red-400/10 text-red-400 border border-red-400/20'
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors ${
+                          isAuthorized ? 'bg-emerald-50 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-400/20' : 'bg-red-50 dark:bg-red-400/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-400/20'
                         }`}>
                           {item.status || 'Desconocido'}
                         </span>
                       </div>
-                      <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4 transition-colors">
                         {new Date(item.timestamp).toLocaleString('es-ES')}
                       </span>
                     </li>
@@ -377,32 +409,32 @@ function App() {
             )}
           </div>
 
-          <div className="border-t border-zinc-800 pt-6">
-            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">Estadísticas de Acceso</h3>
+          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 transition-colors">
+            <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4 transition-colors">Estadísticas de Acceso</h3>
             {logs.length === 0 ? (
-              <div className="text-center py-6 text-zinc-600 text-xs">Sin datos estadísticos</div>
+              <div className="text-center py-6 text-zinc-400 dark:text-zinc-600 text-xs transition-colors">Sin datos estadísticos</div>
             ) : (
-              <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
                 <div className="md:w-40 md:h-40 flex items-center justify-center">
                   <Chart options={chartOptions} series={chartSeries} type="donut" width="100%" />
                 </div>
                 <div className="flex flex-col gap-3 w-full sm:w-auto flex-1">
-                  <div className="flex items-center justify-between gap-6 bg-emerald-400/5 border border-emerald-400/10 px-3 py-2 rounded-lg">
+                  <div className="flex items-center justify-between gap-6 bg-emerald-50 dark:bg-emerald-400/5 border border-emerald-200 dark:border-emerald-400/10 px-3 py-2 rounded-lg transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                      <span className="text-xs font-medium text-zinc-300">Permitidos</span>
+                      <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors">Permitidos</span>
                     </div>
-                    <div className="font-mono text-xs font-bold text-emerald-400">
-                      {stats.allowedPct}% <span className="text-[10px] text-zinc-500 font-normal">({stats.allowed})</span>
+                    <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 transition-colors">
+                      {stats.allowedPct}% <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">({stats.allowed})</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-6 bg-red-400/5 border border-red-400/10 px-3 py-2 rounded-lg">
+                  <div className="flex items-center justify-between gap-6 bg-red-50 dark:bg-red-400/5 border border-red-200 dark:border-red-400/10 px-3 py-2 rounded-lg transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                      <span className="text-xs font-medium text-zinc-300">Denegados</span>
+                      <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors">Denegados</span>
                     </div>
-                    <div className="font-mono text-xs font-bold text-red-400">
-                      {stats.deniedPct}% <span className="text-[10px] text-zinc-500 font-normal">({stats.denied})</span>
+                    <div className="font-mono text-xs font-bold text-red-600 dark:text-red-400 transition-colors">
+                      {stats.deniedPct}% <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">({stats.denied})</span>
                     </div>
                   </div>
                 </div>
