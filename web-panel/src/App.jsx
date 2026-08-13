@@ -284,6 +284,15 @@ function App() {
                 {whitelist.map(item => {
                   const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
 
+                  // Formateamos la fecha y la hora directamente con el objeto Date nativo si existe valid_until
+                  const formattedDate = item.valid_until
+                    ? new Date(item.valid_until).toLocaleDateString('es-ES')
+                    : '';
+
+                  const formattedTime = item.valid_until
+                    ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+
                   return (
                     <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-950/50 border border-zinc-800 p-3 rounded-xl hover:border-zinc-700 transition-colors group gap-3">
                       <div className="flex flex-col gap-1">
@@ -292,9 +301,9 @@ function App() {
                       </div>
                       <div className="flex items-center gap-3 justify-between sm:justify-end">
                         {item.valid_until ? (
-                           <span className={`text-[10px] px-2 py-1 rounded-md font-mono ${isExpired ? 'bg-red-900/30 text-red-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
-                             {isExpired ? 'CADUCADO' : new Date(item.valid_until).toLocaleDateString('es-ES')}
-                           </span>
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-mono ${isExpired ? 'bg-red-900/30 text-red-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                            {isExpired ? 'CADUCADO' : `${formattedDate} ${formattedTime}`}
+                          </span>
                         ) : (
                           <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">PERMANENTE</span>
                         )}
@@ -303,11 +312,13 @@ function App() {
                           className="text-zinc-500 hover:text-red-400 hover:bg-red-400/10 p-1.5 rounded-lg transition-all cursor-pointer"
                           title="Revocar acceso"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
                       </div>
                     </li>
-                  )
+                  );
                 })}
               </ul>
             )}
