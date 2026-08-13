@@ -12,6 +12,8 @@ const PLATE_REGEX = /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{5,9}$/;
 
 function App() {
   const [plate, setPlate] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [validUntil, setValidUntil] = useState('');
   const [whitelist, setWhitelist] = useState([]);
   const [logs, setLogs] = useState([]);
 
@@ -34,8 +36,9 @@ function App() {
 
     function onPlateAdded(newPlate) {
       setWhitelist(prevList => {
-        if (prevList.some(item => item.plate === newPlate.plate)) return prevList;
-        return [...prevList, newPlate];
+        // Filtramos para reemplazar si ya existía (Upsert visual)
+        const filtered = prevList.filter(item => item.plate !== newPlate.plate);
+        return [newPlate, ...filtered];
       });
     }
 
@@ -90,29 +93,13 @@ function App() {
   const chartSeries = [stats.allowed, stats.denied];
 
   const chartOptions = {
-    chart: {
-      type: 'donut',
-      background: 'transparent',
-    },
+    chart: { type: 'donut', background: 'transparent' },
     labels: ['Permitidos', 'Denegados'],
     colors: ['#10b981', '#ef4444'],
-    stroke: {
-      show: true,
-      colors: ['#09090b'],
-      width: 2
-    },
-    dataLabels: {
-      enabled: false
-    },
-    legend: {
-      show: false
-    },
-    tooltip: {
-      theme: 'dark',
-      y: {
-        formatter: (val) => `${val} accesos`
-      }
-    },
+    stroke: { show: true, colors: ['#09090b'], width: 2 },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    tooltip: { theme: 'dark', y: { formatter: (val) => `${val} accesos` } },
     plotOptions: {
       pie: {
         donut: {
@@ -140,137 +127,97 @@ function App() {
     }
   };
 
+  const handlePlateChange = (e) => {
+      const inputPlate = e.target.value.toUpperCase();
+      setPlate(inputPlate);
+
+      const existingRecord = whitelist.find(item => item.plate === inputPlate);
+
+      if (existingRecord) {
+        setOwnerName(existingRecord.owner_name || '');
+
+        if (existingRecord.valid_until) {
+          const date = new Date(existingRecord.valid_until);
+          const tzOffset = date.getTimezoneOffset() * 60000;
+          const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+
+          setValidUntil(localISOTime);
+        } else {
+          setValidUntil('');
+        }
+      }
+    };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
     if (!PLATE_REGEX.test(cleanPlate)) {
       Swal.fire({
         title: "Formato Inválido",
         text: "La matrícula debe tener entre 5 y 9 caracteres (números y letras).",
-        toast: true,
-        position: "top-end",
-        icon: "warning",
-        showConfirmButton: false,
-        timer: 2500,
-        timerProgressBar: true,
-        background: "#18181b",
-        color: "#ffffff"
+        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
+      });
+      return;
+    }
+    if (!ownerName.trim()) {
+      Swal.fire({
+        title: "Dato faltante",
+        text: "Debe introducir el nombre del titular.",
+        toast: true, position: "top-end", icon: "warning", showConfirmButton: false, timer: 2500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
       });
       return;
     }
 
     try {
-      const response = await axios.post(`${API_URL}/api/v1/whitelist`, {
-        plate: cleanPlate
+      await axios.post(`${API_URL}/api/v1/whitelist`, {
+        plate: cleanPlate,
+        owner_name: ownerName,
+        valid_until: validUntil || null
       });
 
       Swal.fire({
         title: "Éxito",
-        text: `Matrícula ${response.data.plate} añadida`,
-        toast: true,
-        position: "top-end",
-        icon: "success",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        background: "#18181b",
-        color: "#ffffff"
+        text: `Matrícula guardada`,
+        toast: true, position: "top-end", icon: "success", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
       });
       setPlate('');
+      setOwnerName('');
+      setValidUntil('');
     } catch (error) {
       Swal.fire({
         title: "Error",
         text: error.response?.data?.error || "Error al añadir",
-        toast: true,
-        position: "top-end",
-        icon: "error",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        background: "#18181b",
-        color: "#ffffff"
+        toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
       });
     }
   };
 
   const handleDelete = async (e, plateToDelete) => {
     e.preventDefault();
-
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
-
       Swal.fire({
-        title: "Eliminada",
-        text: `Matrícula ${plateToDelete} eliminada`,
-        toast: true,
-        position: "top-end",
-        icon: "info",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        background: "#18181b",
-        color: "#ffffff"
+        title: "Eliminada", text: `Matrícula ${plateToDelete} eliminada`, toast: true, position: "top-end", icon: "info", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
       });
     } catch (error) {
       Swal.fire({
-        title: "Error",
-        text: error.response?.data?.error || "Error al eliminar",
-        toast: true,
-        position: "top-end",
-        icon: "error",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        background: "#18181b",
-        color: "#ffffff"
+        title: "Error", text: error.response?.data?.error || "Error al eliminar", toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true, background: "#18181b", color: "#ffffff"
       });
     }
   };
 
   const cleanUpLogsUI = async () => {
     const result = await Swal.fire({
-      title: '¿Estás seguro?',
-      text: 'Se eliminarán todos los registros de acceso.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, borrar todo',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#27272a',
-      background: '#18181b',
-      color: '#ffffff'
+      title: '¿Estás seguro?', text: 'Se eliminarán todos los registros de acceso.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, borrar todo', cancelButtonText: 'Cancelar', confirmButtonColor: '#ef4444', cancelButtonColor: '#27272a', background: '#18181b', color: '#ffffff'
     });
 
     if (result.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/v1/logs`);
-        Swal.fire({
-          title: 'Borrado correcto',
-          text: 'Registros eliminados.',
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-          timerProgressBar: true,
-          background: '#18181b',
-          color: '#ffffff'
-        });
+        Swal.fire({ title: 'Borrado correcto', text: 'Registros eliminados.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true, background: '#18181b', color: '#ffffff' });
       } catch (error) {
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.data?.error || 'Fallo de conexión',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2000,
-          timerProgressBar: true,
-          background: '#18181b',
-          color: '#ffffff'
-        });
+        Swal.fire({ title: 'Error', text: error.response?.data?.error || 'Fallo de conexión', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true, background: '#18181b', color: '#ffffff' });
       }
     }
   };
@@ -281,42 +228,52 @@ function App() {
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Access Control</h1>
-            <p className="text-sm text-zinc-400 mt-1">Gestión de matrículas autorizadas</p>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Añadir accesos</h1>
+            <p className="text-sm text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
-            <div>
-              <label htmlFor="plate" className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
-                Nueva Matrícula
-              </label>
-              <div className="flex md:flex-row gap-2 flex-col ">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8 bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Matrícula</label>
                 <input
                   type="text"
-                  id="plate"
                   value={plate}
-                  onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                  placeholder="Ej: AB-123-CD"
+                  onChange={handlePlateChange}
+                  placeholder="AB-123-CD"
                   maxLength={11}
                   required
-                  className="flex-1 bg-zinc-950 border border-zinc-800 text-white text-lg px-4 py-2.5 rounded-xl focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-600 font-mono tracking-widest"
+                  className="w-full bg-zinc-950 border border-zinc-800 text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-600 font-mono tracking-widest"
                 />
-                <button
-                  type="submit"
-                  className="bg-zinc-100 text-zinc-900 px-6 py-2.5 rounded-xl font-semibold hover:bg-white active:scale-95 transition-all cursor-pointer"
-                >
-                  Añadir
-                </button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Titular</label>
+                <input
+                  type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="Nombre y Apellidos" required
+                  className="w-full bg-zinc-950 border border-zinc-800 text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-600"
+                />
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">Caducidad (Opcional)</label>
+              <input
+                type="datetime-local" value={validUntil} onChange={(e) => setValidUntil(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-300 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all [color-scheme:dark]"
+              />
+            </div>
+            <button
+              type="submit"
+              className="mt-2 w-full bg-zinc-100 text-zinc-900 px-6 py-2.5 rounded-lg font-semibold hover:bg-white active:scale-95 transition-all cursor-pointer"
+            >
+              Guardar / Actualizar Permiso
+            </button>
           </form>
 
           <div>
             <h2 className="text-xs font-medium text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center">
-              <span>Whitelist</span>
-              <span className="bg-zinc-800 text-zinc-300 py-0.5 px-2 rounded-full text-[10px]">
-                {whitelist.length}
-              </span>
+              <span>Permitidos</span>
+              <span className="bg-zinc-800 text-zinc-300 py-0.5 px-2 rounded-full text-[10px]">{whitelist.length}</span>
             </h2>
 
             {whitelist.length === 0 ? (
@@ -325,45 +282,50 @@ function App() {
               </div>
             ) : (
               <ul className="max-h-[500px] overflow-y-auto flex flex-col gap-2 pr-1">
-                {whitelist.map(item => (
-                  <li
-                    key={item.plate}
-                    className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 p-3 rounded-xl hover:border-zinc-700 transition-colors group"
-                  >
-                    <span className="font-mono text-zinc-200 tracking-wider">{item.plate}</span>
-                    <button
-                      onClick={(e) => handleDelete(e, item.plate)}
-                      className="text-zinc-500 hover:text-red-400 hover:bg-red-400/10 p-1.5 rounded-lg transition-all cursor-pointer"
-                      title="Revocar acceso"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
+                {whitelist.map(item => {
+                  const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
+
+                  return (
+                    <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-950/50 border border-zinc-800 p-3 rounded-xl hover:border-zinc-700 transition-colors group gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-mono text-zinc-200 tracking-wider font-bold">{item.plate}</span>
+                        <span className="text-xs text-zinc-400">{item.owner_name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 justify-between sm:justify-end">
+                        {item.valid_until ? (
+                           <span className={`text-[10px] px-2 py-1 rounded-md font-mono ${isExpired ? 'bg-red-900/30 text-red-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                             {isExpired ? 'CADUCADO' : new Date(item.valid_until).toLocaleDateString()}
+                           </span>
+                        ) : (
+                          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">PERMANENTE</span>
+                        )}
+                        <button
+                          onClick={(e) => handleDelete(e, item.plate)}
+                          className="text-zinc-500 hover:text-red-400 hover:bg-red-400/10 p-1.5 rounded-lg transition-all cursor-pointer"
+                          title="Revocar acceso"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col gap-6">
-
           <div>
             <div className="mb-6 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">Live Monitor</h2>
-                <p className="text-sm text-zinc-400 mt-1">Registro de inferencias LPR</p>
+                <h2 className="text-xl font-bold tracking-tight text-white">Actividad</h2>
+                <p className="text-sm text-zinc-400 mt-1">Registro de accesos</p>
               </div>
-
               <div className="flex items-center gap-3">
-                <button
-                  onClick={cleanUpLogsUI}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-400/10 text-red-400 border border-red-400/20 hover:bg-red-400/20 transition-colors cursor-pointer"
-                >
+                <button onClick={cleanUpLogsUI} className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-400/10 text-red-400 border border-red-400/20 hover:bg-red-400/20 transition-colors cursor-pointer">
                   Limpiar
                 </button>
-
                 <span className="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-full border border-emerald-400/20">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -382,27 +344,22 @@ function App() {
               <ul className="max-h-[350px] overflow-y-auto flex flex-col gap-2 pr-1">
                 {logs.map((item, index) => {
                   const isAuthorized = item.status?.toLowerCase().includes('allowed') || item.status === 'OK';
-
                   return (
-                    <li
-                      key={item.id || `log-${item.plate}-${index}`}
-                      className=" bg-zinc-950/50 border border-zinc-800 p-3.5 rounded-xl gap-3"
-                    >
+                    <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-950/50 border border-zinc-800 p-3.5 rounded-xl gap-3">
                       <div className="flex flex-row justify-between items-center gap-4">
                         <span className="font-mono text-zinc-100 text-lg tracking-widest">{item.plate}</span>
                         <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded">
                           OCR: {item.confidence ? (item.confidence * 100).toFixed(0) : '--'}%
                         </span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider  ${
-                          isAuthorized
-                            ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20'
-                            : 'bg-red-400/10 text-red-400 border border-red-400/20'
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                          isAuthorized ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20' : 'bg-red-400/10 text-red-400 border border-red-400/20'
                         }`}>
                           {item.status || 'Desconocido'}
                         </span>
                       </div>
-                      <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">{item.timestamp}</span>
-
+                      <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </span>
                     </li>
                   );
                 })}
@@ -411,26 +368,14 @@ function App() {
           </div>
 
           <div className="border-t border-zinc-800 pt-6">
-            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-              Estadísticas de Acceso
-            </h3>
-
+            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">Estadísticas de Acceso</h3>
             {logs.length === 0 ? (
-              <div className="text-center py-6 text-zinc-600 text-xs">
-                Sin datos estadísticos
-              </div>
+              <div className="text-center py-6 text-zinc-600 text-xs">Sin datos estadísticos</div>
             ) : (
               <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-
                 <div className="md:w-40 md:h-40 flex items-center justify-center">
-                  <Chart
-                    options={chartOptions}
-                    series={chartSeries}
-                    type="donut"
-                    width="100%"
-                  />
+                  <Chart options={chartOptions} series={chartSeries} type="donut" width="100%" />
                 </div>
-
                 <div className="flex flex-col gap-3 w-full sm:w-auto flex-1">
                   <div className="flex items-center justify-between gap-6 bg-emerald-400/5 border border-emerald-400/10 px-3 py-2 rounded-lg">
                     <div className="flex items-center gap-2">
@@ -441,7 +386,6 @@ function App() {
                       {stats.allowedPct}% <span className="text-[10px] text-zinc-500 font-normal">({stats.allowed})</span>
                     </div>
                   </div>
-
                   <div className="flex items-center justify-between gap-6 bg-red-400/5 border border-red-400/10 px-3 py-2 rounded-lg">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
@@ -452,11 +396,9 @@ function App() {
                     </div>
                   </div>
                 </div>
-
               </div>
             )}
           </div>
-
         </div>
 
       </div>

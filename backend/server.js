@@ -5,11 +5,11 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-const server = createServer(app); 
+const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: true, 
+        origin: true,
         methods: ['GET', 'POST'],
         credentials: true
     }
@@ -32,6 +32,8 @@ const db = new Database('access_control.sqlite');
 db.exec(`
     CREATE TABLE IF NOT EXISTS whitelist (
         plate TEXT PRIMARY KEY,
+        owner_name TEXT NOT NULL,
+        valid_until DATETIME,
         added_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS access_logs (
@@ -44,11 +46,22 @@ db.exec(`
     );
 `);
 
-const checkPlateStmt = db.prepare('SELECT plate FROM whitelist WHERE plate = ?');
+const checkPlateStmt = db.prepare(`
+    SELECT plate, owner_name
+    FROM whitelist
+    WHERE plate = ? AND (valid_until IS NULL OR valid_until > datetime('now'))
+`);
 const insertLogStmt = db.prepare('INSERT INTO access_logs (plate, confidence, camera_id, status) VALUES (?, ?, ?, ?)');
-const insertPlateStmt = db.prepare('INSERT OR IGNORE INTO whitelist (plate) VALUES (?)');
+
+const insertPlateStmt = db.prepare(`
+    INSERT INTO whitelist (plate, owner_name, valid_until)
+    VALUES (?, ?, ?)
+    ON CONFLICT(plate) DO UPDATE SET
+        owner_name = excluded.owner_name,
+        valid_until = excluded.valid_until
+`);
 const deletePlateStmt = db.prepare('DELETE FROM whitelist WHERE plate = ?');
-const getAllPlatesStmt = db.prepare('SELECT plate, added_at FROM whitelist');
+const getAllPlatesStmt = db.prepare('SELECT plate, owner_name, valid_until, added_at FROM whitelist ORDER BY added_at DESC');
 const getAllLogsStmt = db.prepare('SELECT * FROM access_logs ORDER BY id DESC');
 const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 
@@ -68,10 +81,10 @@ app.post('/api/v1/access', (req, res) => {
         return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo' });
     }
 
-    const isWhitelisted = checkPlateStmt.get(plate);
-    const status = isWhitelisted ? 'ALLOWED' : 'DENIED';
+    const validRecord = checkPlateStmt.get(plate);
+    const status = validRecord ? 'ALLOWED' : 'DENIED';
 
-    if (isWhitelisted) {
+    if (validRecord) {
         lastAccessLog.set(plate, now);
         triggerRelayHardware();
     }
@@ -86,11 +99,11 @@ app.post('/api/v1/access', (req, res) => {
         status,
         timestamp: new Date().toISOString()
     };
-    
+
     io.emit('new_log', newLog);
 
-    console.log(`[ACCESO ${status}] Matrícula: ${plate}`);
-    return res.status(isWhitelisted ? 200 : 403).json({ status, plate });
+    console.log(`[ACCESO ${status}] Matrícula: ${plate} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
+    return res.status(validRecord ? 200 : 403).json({ status, plate });
 });
 
 function triggerRelayHardware() {}
@@ -98,19 +111,23 @@ function triggerRelayHardware() {}
 app.get('/api/v1/whitelist', (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
 app.post('/api/v1/whitelist', (req, res) => {
-    const { plate } = req.body;
-    
+    const { plate, owner_name, valid_until } = req.body;
+
     if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
-        return res.status(400).json({ error: 'Formato inválido. Debe contener entre 4 y 9 caracteres.' });
+        return res.status(400).json({ error: 'Formato de matrícula inválido.' });
+    }
+    if (!owner_name || owner_name.trim().length === 0) {
+        return res.status(400).json({ error: 'El nombre del titular es obligatorio.' });
     }
 
-    const info = insertPlateStmt.run(plate);
-    if (info.changes > 0) {
-        io.emit('plate_added', { plate });
-        res.status(201).json({ message: 'Matrícula añadida', plate });
-    } else {
-        res.status(409).json({ error: 'La matrícula ya existe' });
-    }
+    const expiryDate = valid_until ? new Date(valid_until).toISOString() : null;
+
+    insertPlateStmt.run(plate, owner_name.trim(), expiryDate);
+
+    const newPlateRecord = { plate, owner_name: owner_name.trim(), valid_until: expiryDate };
+
+    io.emit('plate_added', newPlateRecord);
+    res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
 
 app.delete('/api/v1/whitelist/:plate', (req, res) => {
