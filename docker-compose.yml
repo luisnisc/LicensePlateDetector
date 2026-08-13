@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  lpr-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lpr_backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - sqlite_data:/app
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+  lpr-web-panel:
+    build:
+      context: ./web-panel
+      dockerfile: Dockerfile
+    container_name: lpr_web_panel
+    restart: unless-stopped
+    ports:
+      - "8089:80"
+    depends_on:
+      - lpr-backend
+
+volumes:
+  sqlite_data:

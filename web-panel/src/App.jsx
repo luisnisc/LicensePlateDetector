@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import Chart from 'react-apexcharts';
 import './App.css';
 
-const API_URL = `http://${window.location.hostname}:3000`;
+const API_URL = process.env.NODE_ENV === 'production' ? '' : `http://${window.location.hostname}:3000`;
 const socket = io(API_URL);
 
 const PLATE_REGEX = /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{5,9}$/;
@@ -77,7 +77,7 @@ function App() {
   }, []);
 
   const stats = useMemo(() => {
-    const allowed = logs.filter(item => 
+    const allowed = logs.filter(item =>
       item.status?.toLowerCase().includes('allowed') || item.status === 'OK'
     ).length;
     const denied = logs.length - allowed;
@@ -88,7 +88,7 @@ function App() {
   }, [logs]);
 
   const chartSeries = [stats.allowed, stats.denied];
-  
+
   const chartOptions = {
     chart: {
       type: 'donut',
@@ -242,7 +242,7 @@ function App() {
       background: '#18181b',
       color: '#ffffff'
     });
-  
+
     if (result.isConfirmed) {
       try {
         await axios.delete(`${API_URL}/api/v1/logs`);
@@ -348,7 +348,7 @@ function App() {
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col gap-6">
-          
+
           <div>
             <div className="mb-6 flex justify-between items-center">
               <div>
@@ -357,7 +357,7 @@ function App() {
               </div>
 
               <div className="flex items-center gap-3">
-                <button 
+                <button
                   onClick={cleanUpLogsUI}
                   className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-400/10 text-red-400 border border-red-400/20 hover:bg-red-400/20 transition-colors cursor-pointer"
                 >
@@ -402,7 +402,7 @@ function App() {
                         </span>
                       </div>
                       <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">{item.timestamp}</span>
-                     
+
                     </li>
                   );
                 })}
@@ -421,13 +421,13 @@ function App() {
               </div>
             ) : (
               <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                
+
                 <div className="md:w-40 md:h-40 flex items-center justify-center">
-                  <Chart 
-                    options={chartOptions} 
-                    series={chartSeries} 
-                    type="donut" 
-                    width="100%" 
+                  <Chart
+                    options={chartOptions}
+                    series={chartSeries}
+                    type="donut"
+                    width="100%"
                   />
                 </div>
 
