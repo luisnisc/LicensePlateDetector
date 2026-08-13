@@ -36,7 +36,6 @@ function App() {
 
     function onPlateAdded(newPlate) {
       setWhitelist(prevList => {
-        // Filtramos para reemplazar si ya existía (Upsert visual)
         const filtered = prevList.filter(item => item.plate !== newPlate.plate);
         return [newPlate, ...filtered];
       });
@@ -294,7 +293,7 @@ function App() {
                       <div className="flex items-center gap-3 justify-between sm:justify-end">
                         {item.valid_until ? (
                            <span className={`text-[10px] px-2 py-1 rounded-md font-mono ${isExpired ? 'bg-red-900/30 text-red-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
-                             {isExpired ? 'CADUCADO' : new Date(item.valid_until).toLocaleDateString()}
+                             {isExpired ? 'CADUCADO' : new Date(item.valid_until).toLocaleDateString('es-ES')}
                            </span>
                         ) : (
                           <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">PERMANENTE</span>
@@ -358,7 +357,7 @@ function App() {
                         </span>
                       </div>
                       <span className="text-xs text-zinc-500 font-mono bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4">
-                        {new Date(item.timestamp).toLocaleString()}
+                        {new Date(item.timestamp).toLocaleString('es-ES')}
                       </span>
                     </li>
                   );
