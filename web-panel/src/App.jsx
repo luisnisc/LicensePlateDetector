@@ -116,7 +116,7 @@ function App() {
 
   const stats = useMemo(() => {
     const allowed = logs.filter(item =>
-      item.status?.toLowerCase().includes('allowed') || item.status === 'OK'
+      item.status?.toLowerCase().includes('permitido') || item.status === 'OK'
     ).length;
     const denied = logs.length - allowed;
     const allowedPct = logs.length > 0 ? ((allowed / logs.length) * 100).toFixed(1) : 0;
