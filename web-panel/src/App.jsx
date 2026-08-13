@@ -17,7 +17,6 @@ function App() {
   const [whitelist, setWhitelist] = useState([]);
   const [logs, setLogs] = useState([]);
 
-  // Detección dinámica de tema oscuro/claro del sistema o navegador
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -114,7 +113,6 @@ function App() {
 
   const chartSeries = [stats.allowed, stats.denied];
 
-  // Configuración del gráfico con colores dinámicos reactivos al tema
   const chartOptions = useMemo(() => ({
     chart: { type: 'donut', background: 'transparent' },
     labels: ['Permitidos', 'Denegados'],
@@ -167,11 +165,15 @@ function App() {
       setOwnerName(existingRecord.owner_name || '');
 
       if (existingRecord.valid_until) {
-        const date = new Date(existingRecord.valid_until);
-        const tzOffset = date.getTimezoneOffset() * 60000;
-        const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+        const d = new Date(existingRecord.valid_until);
 
-        setValidUntil(localISOTime);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+        setValidUntil(`${year}-${month}-${day}T${hours}:${minutes}`);
       } else {
         setValidUntil('');
       }
@@ -203,7 +205,7 @@ function App() {
       await axios.post(`${API_URL}/api/v1/whitelist`, {
         plate: cleanPlate,
         owner_name: ownerName,
-        valid_until: validUntil || null
+        valid_until: validUntil ? new Date(validUntil).toISOString() : null
       });
 
       Swal.fire({

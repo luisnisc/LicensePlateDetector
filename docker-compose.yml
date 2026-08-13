@@ -12,6 +12,7 @@ services:
     volumes:
       - sqlite_data:/app
     environment:
+      - TZ=Europe/Madrid
       - NODE_ENV=production
       - PORT=3000
 
