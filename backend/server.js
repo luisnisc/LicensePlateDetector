@@ -49,7 +49,8 @@ db.exec(`
 const checkPlateStmt = db.prepare(`
     SELECT plate, owner_name
     FROM whitelist
-    WHERE plate = ? AND (valid_until IS NULL OR valid_until > datetime('now'))
+    WHERE plate = ?
+      AND (valid_until IS NULL OR datetime(valid_until) > datetime('now'))
 `);
 const insertLogStmt = db.prepare('INSERT INTO access_logs (plate, confidence, camera_id, status) VALUES (?, ?, ?, ?)');
 
