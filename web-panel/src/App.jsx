@@ -401,7 +401,7 @@ function App() {
             ) : (
               <ul className="max-h-[350px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
                 {logs.map((item, index) => {
-                  const isAuthorized = item.status?.toLowerCase().includes('allowed') || item.status === 'OK';
+                  const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
                   return (
                     <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl gap-3 transition-colors">
                       <div className="flex flex-row justify-between items-center gap-4">
@@ -412,7 +412,7 @@ function App() {
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors ${
                           isAuthorized ? 'bg-emerald-50 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-400/20' : 'bg-red-50 dark:bg-red-400/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-400/20'
                         }`}>
-                          {item.status || 'Desconocido'}
+                          {item.status  || 'Desconocido'}
                         </span>
                       </div>
                       <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded flex justify-center mt-4 transition-colors">

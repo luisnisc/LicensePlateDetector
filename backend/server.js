@@ -83,7 +83,7 @@ app.post('/api/v1/access', (req, res) => {
     }
 
     const validRecord = checkPlateStmt.get(plate);
-    const status = validRecord ? 'ALLOWED' : 'DENIED';
+    const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
 
     if (validRecord) {
         lastAccessLog.set(plate, now);
