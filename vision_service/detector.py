@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from ultralytics import YOLO
 from paddleocr import PaddleOCR
 from flask import Flask, Response
+from waitress import serve
 
 @dataclass
 class Config:
@@ -354,7 +355,7 @@ class ALPRSystem:
         threading.Thread(target=self.process_pipeline, daemon=True).start()
 
         threading.Thread(
-            target=lambda: flask_app.run(host='0.0.0.0', port=Config.STREAM_PORT, threaded=True, use_reloader=False),
+            target=lambda: serve(flask_app, host='0.0.0.0', port=Config.STREAM_PORT, threads=4),
             daemon=True
         ).start()
         print(f"[STREAM] Emisión Web activa en: http://localhost:{Config.STREAM_PORT}/video_feed")
