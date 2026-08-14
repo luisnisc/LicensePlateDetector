@@ -3,9 +3,32 @@ const Database = require('better-sqlite3');
 const cors = require('cors');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
 
 const app = express();
 const server = createServer(app);
+
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'LPR Access Control API',
+      version: '1.0.0',
+      description: 'API REST para la gestión de control de acceso por matrículas (ALPR) y monitorización en tiempo real.',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000',
+        description: 'Servidor Local',
+      },
+    ],
+  },
+  apis: ['./server.js'],
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const io = new Server(server, {
     cors: {
@@ -69,6 +92,40 @@ const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
 
+/**
+ * @openapi
+ * /api/v1/access:
+ *   post:
+ *     summary: Procesa una detección de matrícula enviada por una cámara LPR
+ *     tags:
+ *       - Access Control
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - plate
+ *             properties:
+ *               plate:
+ *                 type: string
+ *                 example: "1234ABC"
+ *               confidence:
+ *                 type: number
+ *                 example: 0.95
+ *               camera_id:
+ *                 type: string
+ *                 example: "CAM_ENTRADA_01"
+ *     responses:
+ *       200:
+ *         description: Acceso permitido.
+ *       403:
+ *         description: Acceso denegado (matrícula no en whitelist o caducada).
+ *       429:
+ *         description: Solicitud ignorada por Cooldown activo.
+ */
+
 app.post('/api/v1/access', (req, res) => {
     const { plate, confidence, camera_id } = req.body;
 
@@ -107,7 +164,50 @@ app.post('/api/v1/access', (req, res) => {
     return res.status(validRecord ? 200 : 403).json({ status, plate });
 });
 
-function triggerRelayHardware() {}
+function triggerRelayHardware() { }
+
+/**
+ * @openapi
+ * /api/v1/whitelist:
+ *   get:
+ *     summary: Obtiene la lista completa de matrículas autorizadas
+ *     tags:
+ *       - Whitelist
+ *     responses:
+ *       200:
+ *         description: Lista devuelta correctamente.
+ *
+ *   post:
+ *     summary: Añade o actualiza una matrícula en la whitelist (Upsert)
+ *     tags:
+ *       - Whitelist
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - plate
+ *               - owner_name
+ *             properties:
+ *               plate:
+ *                 type: string
+ *                 example: "5678DEF"
+ *               owner_name:
+ *                 type: string
+ *                 example: "Juan Pérez"
+ *               valid_until:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 example: "2026-12-31T23:59:59.000Z"
+ *     responses:
+ *       201:
+ *         description: Matrícula guardada correctamente.
+ *       400:
+ *         description: Datos de entrada no válidos.
+ */
 
 app.get('/api/v1/whitelist', (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
