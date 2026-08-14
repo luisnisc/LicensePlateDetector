@@ -25,3 +25,5 @@ dist-ssr
 
 *.pt
 *.sqlite
+
+.env

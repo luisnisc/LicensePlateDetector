@@ -8,18 +8,18 @@ const swaggerJsdoc = require('swagger-jsdoc');
 
 require('dotenv').config();
 
-const API_TOKEN = process.env.LPR_API_TOKEN || 'token_api';
+const API_TOKEN = process.env.LPR_API_TOKEN || 'puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf';
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Extraer el token del formato "Bearer <token>"
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token || token !== API_TOKEN) {
         console.warn(`[SEGURIDAD] Intento de acceso no autorizado desde IP: ${req.ip}`);
         return res.status(401).json({ error: 'No autorizado: Token inválido o ausente' });
     }
 
-    next(); // Si el token es correcto, continua al endpoint
+    next();
 };
 
 const app = express();
