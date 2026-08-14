@@ -6,6 +6,22 @@ const { Server } = require('socket.io');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
+require('dotenv').config();
+
+const API_TOKEN = process.env.LPR_API_TOKEN || 'token_api';
+
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Extraer el token del formato "Bearer <token>"
+
+    if (!token || token !== API_TOKEN) {
+        console.warn(`[SEGURIDAD] Intento de acceso no autorizado desde IP: ${req.ip}`);
+        return res.status(401).json({ error: 'No autorizado: Token inválido o ausente' });
+    }
+
+    next(); // Si el token es correcto, continua al endpoint
+};
+
 const app = express();
 const server = createServer(app);
 
@@ -92,6 +108,8 @@ const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
 
+
+
 /**
  * @openapi
  * /api/v1/access:
@@ -126,7 +144,7 @@ const COOLDOWN_MS = 10000;
  *         description: Solicitud ignorada por Cooldown activo.
  */
 
-app.post('/api/v1/access', (req, res) => {
+app.post('/api/v1/access', authenticateToken, (req, res) => {
     const { plate, confidence, camera_id } = req.body;
 
     if (!plate) return res.status(400).json({ error: 'Matrícula no proporcionada' });

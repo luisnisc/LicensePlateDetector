@@ -47,6 +47,8 @@ class Config:
 
 logging.getLogger('ppocr').setLevel(logging.ERROR)
 
+API_TOKEN = "puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf"
+
 flask_app = Flask(__name__)
 output_frame = None
 frame_lock = threading.Lock()
@@ -214,8 +216,13 @@ class ALPRSystem:
             "confidence": round(confidence, 2),
             "camera_id": Config.CAMERA_ID
         }
+
+        headers = {
+            "Authorization": f"Bearer {API_TOKEN}",
+            "Content-Type": "application/json"
+            }
         try:
-            response = self.session.post(Config.BACKEND_URL, json=payload, timeout=2.5)
+            response = self.session.post(Config.BACKEND_URL, json=payload, headers=headers, timeout=2.5)
             if response.status_code in (200, 201):
                 print(f" -> [API HTTP {response.status_code}] Acceso AUTORIZADO: {plate_text}")
             elif response.status_code in (401, 403, 404):
