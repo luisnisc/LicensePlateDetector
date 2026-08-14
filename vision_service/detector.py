@@ -6,6 +6,8 @@ import logging
 import threading
 import numpy as np
 import requests
+import os
+from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from collections import Counter
@@ -14,6 +16,7 @@ from ultralytics import YOLO
 from paddleocr import PaddleOCR
 from flask import Flask, Response
 from waitress import serve
+
 
 @dataclass
 class Config:
@@ -47,7 +50,9 @@ class Config:
 
 logging.getLogger('ppocr').setLevel(logging.ERROR)
 
-API_TOKEN = "puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf"
+load_dotenv()
+
+API_TOKEN = os.getenv("LPR_API_TOKEN")
 
 flask_app = Flask(__name__)
 output_frame = None
