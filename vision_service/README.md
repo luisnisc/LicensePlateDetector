@@ -1,4 +1,4 @@
-# ALPR Pipeline: Ultra-Agile European License Plate Detector 🚘⚡
+# LicensePlateDetector Python Script 🚘⚡
 
 Este proyecto implementa un sistema de Reconocimiento Automático de Matrículas (ALPR) de dos etapas utilizando visión por computadora de última generación. Está optimizado para barreras de acceso, procesando el flujo de video en tiempo real, filtrando falsos positivos mediante algoritmos geométricos y ópticos, y enviando las lecturas validadas a un backend API REST.
 
