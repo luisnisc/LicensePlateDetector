@@ -48,7 +48,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const io = new Server(server, {
   cors: {
-    origin: true,
+    origin: "*",
     methods: ['GET', 'POST'],
     credentials: true
   }
