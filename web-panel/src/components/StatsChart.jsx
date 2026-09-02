@@ -44,8 +44,14 @@ export function StatsChart({ logs, isDarkMode }) {
 
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
-      <div className="md:w-40 md:h-40 flex items-center justify-center">
-        <Chart options={chartOptions} series={[stats.allowed, stats.denied]} type="donut" width="100%" />
+      <div className="w-[140px] h-[140px] flex-shrink-0 flex items-center justify-center">
+        <Chart
+          options={chartOptions}
+          series={[stats.allowed, stats.denied]}
+          type="donut"
+          width="140"
+          height="140"
+        />
       </div>
       <div className="flex flex-col gap-3 w-full sm:w-auto flex-1">
         <div className="flex items-center justify-between gap-6 bg-emerald-50 dark:bg-emerald-400/5 border border-emerald-200 dark:border-emerald-400/10 px-3 py-2 rounded-lg transition-colors">

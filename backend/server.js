@@ -11,15 +11,15 @@ require('dotenv').config();
 const API_TOKEN = process.env.LPR_API_TOKEN || 'puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf';
 
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token || token !== API_TOKEN) {
-        console.warn(`[SEGURIDAD] Intento de acceso no autorizado desde IP: ${req.ip}`);
-        return res.status(401).json({ error: 'No autorizado: Token inválido o ausente' });
-    }
+  if (!token || token !== API_TOKEN) {
+    console.warn(`[SEGURIDAD] Intento de acceso no autorizado desde IP: ${req.ip}`);
+    return res.status(401).json({ error: 'No autorizado: Token inválido o ausente' });
+  }
 
-    next();
+  next();
 };
 
 const app = express();
@@ -47,21 +47,26 @@ const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const io = new Server(server, {
-    cors: {
-        origin: true,
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
+  cors: {
+    origin: true,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
 });
 
 io.on('connection', (socket) => {
-    console.log(`[SOCKET] Cliente conectado: ${socket.id}`);
+  console.log(`[SOCKET] Cliente conectado: ${socket.id}`);
+
+  // Canal WebSocket para recibir y difundir el streaming de la cámara
+  socket.on('video_frame', (frameBuffer) => {
+    socket.broadcast.emit('video_frame', frameBuffer);
+  });
 });
 
 app.use(cors({
-    origin: true,
-    methods: ['GET', 'POST', 'DELETE'],
-    credentials: true
+  origin: true,
+  methods: ['GET', 'POST', 'DELETE'],
+  credentials: true
 }));
 
 app.use(express.json());
@@ -108,8 +113,6 @@ const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
 
-
-
 /**
  * @openapi
  * /api/v1/access:
@@ -143,43 +146,42 @@ const COOLDOWN_MS = 10000;
  *       429:
  *         description: Solicitud ignorada por Cooldown activo.
  */
-
 app.post('/api/v1/access', authenticateToken, (req, res) => {
-    const { plate, confidence, camera_id } = req.body;
+  const { plate, confidence, camera_id } = req.body;
 
-    if (!plate) return res.status(400).json({ error: 'Matrícula no proporcionada' });
+  if (!plate) return res.status(400).json({ error: 'Matrícula no proporcionada' });
 
-    const now = Date.now();
-    const lastTime = lastAccessLog.get(plate) || 0;
+  const now = Date.now();
+  const lastTime = lastAccessLog.get(plate) || 0;
 
-    if (now - lastTime < COOLDOWN_MS) {
-        console.log(`[DEBOUNCE] Matrícula ${plate} ignorada (Cooldown).`);
-        return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo' });
-    }
+  if (now - lastTime < COOLDOWN_MS) {
+    console.log(`[DEBOUNCE] Matrícula ${plate} ignorada (Cooldown).`);
+    return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo' });
+  }
 
-    const validRecord = checkPlateStmt.get(plate);
-    const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
+  const validRecord = checkPlateStmt.get(plate);
+  const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
 
-    if (validRecord) {
-        lastAccessLog.set(plate, now);
-        triggerRelayHardware();
-    }
+  if (validRecord) {
+    lastAccessLog.set(plate, now);
+    triggerRelayHardware();
+  }
 
-    const info = insertLogStmt.run(plate, confidence, camera_id, status);
+  const info = insertLogStmt.run(plate, confidence, camera_id, status);
 
-    const newLog = {
-        id: info.lastInsertRowid,
-        plate,
-        confidence,
-        camera_id,
-        status,
-        timestamp: new Date().toISOString()
-    };
+  const newLog = {
+    id: info.lastInsertRowid,
+    plate,
+    confidence,
+    camera_id,
+    status,
+    timestamp: new Date().toISOString()
+  };
 
-    io.emit('new_log', newLog);
+  io.emit('new_log', newLog);
 
-    console.log(`[ACCESO ${status}] Matrícula: ${plate} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
-    return res.status(validRecord ? 200 : 403).json({ status, plate });
+  console.log(`[ACCESO ${status}] Matrícula: ${plate} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
+  return res.status(validRecord ? 200 : 403).json({ status, plate });
 });
 
 function triggerRelayHardware() { }
@@ -226,52 +228,51 @@ function triggerRelayHardware() { }
  *       400:
  *         description: Datos de entrada no válidos.
  */
-
 app.get('/api/v1/whitelist', (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
 app.post('/api/v1/whitelist', (req, res) => {
-    const { plate, owner_name, valid_until } = req.body;
+  const { plate, owner_name, valid_until } = req.body;
 
-    if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
-        return res.status(400).json({ error: 'Formato de matrícula inválido.' });
-    }
-    if (!owner_name || owner_name.trim().length === 0) {
-        return res.status(400).json({ error: 'El nombre del titular es obligatorio.' });
-    }
+  if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
+    return res.status(400).json({ error: 'Formato de matrícula inválido.' });
+  }
+  if (!owner_name || owner_name.trim().length === 0) {
+    return res.status(400).json({ error: 'El nombre del titular es obligatorio.' });
+  }
 
-    const expiryDate = valid_until ? new Date(valid_until).toISOString() : null;
+  const expiryDate = valid_until ? new Date(valid_until).toISOString() : null;
 
-    insertPlateStmt.run(plate, owner_name.trim(), expiryDate);
+  insertPlateStmt.run(plate, owner_name.trim(), expiryDate);
 
-    const newPlateRecord = { plate, owner_name: owner_name.trim(), valid_until: expiryDate };
+  const newPlateRecord = { plate, owner_name: owner_name.trim(), valid_until: expiryDate };
 
-    io.emit('plate_added', newPlateRecord);
-    res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
+  io.emit('plate_added', newPlateRecord);
+  res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
 
 app.delete('/api/v1/whitelist/:plate', (req, res) => {
-    const info = deletePlateStmt.run(req.params.plate);
-    if (info.changes > 0) {
-        io.emit('plate_removed', { plate: req.params.plate });
-        res.status(200).json({ message: 'Matrícula eliminada' });
-    } else {
-        res.status(404).json({ error: 'No encontrada' });
-    }
+  const info = deletePlateStmt.run(req.params.plate);
+  if (info.changes > 0) {
+    io.emit('plate_removed', { plate: req.params.plate });
+    res.status(200).json({ message: 'Matrícula eliminada' });
+  } else {
+    res.status(404).json({ error: 'No encontrada' });
+  }
 });
 
 app.get('/api/v1/logs', (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
 app.delete('/api/v1/logs', (req, res) => {
-    try {
-        const info = cleanLogsStmt.run();
-        io.emit('logs_cleared');
-        return res.status(200).json({ message: 'Logs eliminados correctamente', rowsDeleted: info.changes });
-    } catch (error) {
-        console.error('[DATABASE ERROR]', error);
-        return res.status(500).json({ error: 'Error interno' });
-    }
+  try {
+    const info = cleanLogsStmt.run();
+    io.emit('logs_cleared');
+    return res.status(200).json({ message: 'Logs eliminados correctamente', rowsDeleted: info.changes });
+  } catch (error) {
+    console.error('[DATABASE ERROR]', error);
+    return res.status(500).json({ error: 'Error interno' });
+  }
 });
 
 server.listen(3000, () => {
-    console.log('Backend LPR activo en puerto 3000 con SQLite y WebSockets');
+  console.log('Backend LPR activo en puerto 3000 con SQLite y WebSockets');
 });
