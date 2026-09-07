@@ -1,3 +1,5 @@
+import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 import cv2
 import re
 import time
@@ -6,7 +8,6 @@ import logging
 import threading
 import numpy as np
 import requests
-import os
 import socketio
 from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
@@ -21,7 +22,8 @@ from paddleocr import PaddleOCR
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
     CAMERA_ID: str = "BARRERA_ACCESO_01"
-    VIDEO_SOURCE = 0
+    # VIDEO_SOURCE = 0
+    VIDEO_SOURCE = 'rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101'
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
@@ -161,7 +163,64 @@ class PlateValidator:
         with self.mutex:
             return self.locked_plate
 
+class RTSPCapture:
+    def __init__(self, src):
+        self.src = src
+        self.lock = threading.Lock()
+        self.frame = None
+        self.running = True
 
+        if isinstance(self.src, int) or str(self.src).isdigit():
+            self.cap = cv2.VideoCapture(int(self.src))
+        else:
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+            self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
+
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
+
+        # BLOQUEO DE ARRANQUE: Esperar hasta 5 segundos a recibir el primer frame real
+        print("[STREAM] Esperando el primer fotograma de la cámara...")
+        start_time = time.time()
+        while self.frame is None and (time.time() - start_time) < 5.0:
+            time.sleep(0.1)
+
+    def _update(self):
+        while self.running:
+            if not self.cap.isOpened():
+                time.sleep(1)
+                try:
+                    if isinstance(self.src, int) or str(self.src).isdigit():
+                        self.cap.open(int(self.src))
+                    else:
+                        self.cap.open(self.src, cv2.CAP_FFMPEG)
+                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                except:
+                    pass
+                continue
+
+            ret, frame = self.cap.read()
+            if ret:
+                with self.lock:
+                    self.frame = frame
+            else:
+                time.sleep(0.1)
+
+    def read(self):
+        with self.lock:
+            if self.frame is not None:
+                return True, self.frame.copy()
+            return False, None
+
+    def isOpened(self):
+        return self.cap.isOpened()
+
+    def release(self):
+        self.running = False
+        self.thread.join(timeout=1.0)
+        self.cap.release()
 class ALPRSystem:
     def __init__(self):
         print("[SISTEMA] Inicializando tensores y modelos en GPU...")
@@ -396,7 +455,8 @@ class ALPRSystem:
                 self.current_detections = render_data
 
     def _open_capture(self):
-        return cv2.VideoCapture(Config.VIDEO_SOURCE)
+        # return cv2.VideoCapture(Config.VIDEO_SOURCE)
+        return RTSPCapture(Config.VIDEO_SOURCE)
 
     def start(self):
         print("[SISTEMA] Iniciando pipeline Productor-Consumidor...")
@@ -490,7 +550,6 @@ class ALPRSystem:
                 2,
             )
 
-            # Comprimir fotograma a JPEG y enviarlo por WebSocket en lugar de Flask
             small_frame = cv2.resize(frame, (640, 360))
             ret_enc, encoded_image = cv2.imencode(
                 ".jpg", small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
@@ -498,8 +557,14 @@ class ALPRSystem:
             if ret_enc:
                 if sio.connected:
                     sio.emit("video_frame", encoded_image.tobytes())
+                    print("[DEBUG] ¡Frame enviado por WebSocket!", end="\r")
 
-            time.sleep(0.03)  # Pequeño respiro para estabilizar la tasa de frames
+            cv2.imshow("Sistema ALPR - Control de Acceso", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+            time.sleep(0.03) 
 
         cap.release()
         cv2.destroyAllWindows()
