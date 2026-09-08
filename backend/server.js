@@ -100,9 +100,9 @@ db.exec(`
 
 const checkUserStmt = db.prepare('SELECT * FROM users WHERE username = ?');
 if (!checkUserStmt.get('admin')) {
-  const hash = bcrypt.hashSync('admin123', 10);
+  const hash = bcrypt.hashSync('Filip@2807', 10);
   db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('admin', hash);
-  console.log('[SISTEMA] Usuario por defecto creado: admin / admin123');
+  console.log('[SISTEMA] Usuario por defecto creado: admin ');
 }
 
 const checkPlateStmt = db.prepare(`

@@ -106,15 +106,13 @@ function App() {
     );
   }
 
-  // --- RENDERIZADO: DASHBOARD PRINCIPAL ---
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex flex-col items-center p-4 md:p-8 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
 
-      {/* Botón de Cerrar Sesión en la parte superior derecha */}
       <div className="w-full max-w-5xl flex justify-end mb-4">
         <button
           onClick={handleLogout}
-          className="text-xs font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2 bg-white dark:bg-zinc-900"
+          className="text-xs cursor-pointer font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2 bg-white dark:bg-zinc-900"
         >
           Cerrar sesión
         </button>
