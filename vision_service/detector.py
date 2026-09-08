@@ -35,11 +35,11 @@ class Config:
     REQUIRED_MATCHES: int = 4
     MAX_ATTEMPTS: int = 6
     COOLDOWN_SECONDS: int = 5
-    DENIED_COOLDOWN_SECONDS: int = 8
+    DENIED_COOLDOWN_SECONDS: int = 120
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
-    ROI_BOX = None
+    ROI_BOX = (300, 185, 2000, 1000)
 
     STABILITY_FRAMES: int = 5
     STABILITY_MOVEMENT_PX: int = 15
@@ -74,37 +74,59 @@ class PlateValidator:
         self.reads = []
         self.locked_plate = None
         self.lock_timestamp = 0
-        self.denied_plate = None
-        self.denied_timestamp = 0
+
+        self.denied_plates = {}
+        self.recent_processed = {}
+
+        self.RECENT_EXPIRY = 60.0
+
         self.mutex = threading.Lock()
 
     def add_read(self, plate_text, confidence):
         with self.mutex:
             if self._is_locked_internal():
                 return None
+
+            current_time = time.time()
+
+            if plate_text in self.recent_processed:
+                if (current_time - self.recent_processed[plate_text]) < self.RECENT_EXPIRY:
+                    return None
+                else:
+                    del self.recent_processed[plate_text]
+
             self.reads.append((plate_text, confidence))
+
             raw_texts = [r[0] for r in self.reads]
             valid_texts = [
                 t for t in raw_texts if not any((t != o and t in o) for o in raw_texts)
             ]
+
             candidate = None
             if len(valid_texts) >= Config.REQUIRED_MATCHES:
                 counts = Counter(valid_texts)
                 most_common_text, frequency = counts.most_common(1)[0]
                 if frequency >= Config.REQUIRED_MATCHES:
                     candidate = most_common_text
+
             if candidate is None and len(self.reads) >= Config.MAX_ATTEMPTS:
                 candidate = self._character_vote_internal()
+
             if candidate:
                 if self._is_recently_denied_internal(candidate):
                     self.reads.clear()
                     return None
+
                 self.locked_plate = candidate
-                self.lock_timestamp = time.time()
+                self.lock_timestamp = current_time
+                self.recent_processed[candidate] = current_time
                 self.reads.clear()
+
                 return candidate
+
             if len(self.reads) >= Config.MAX_ATTEMPTS:
                 self.reads.pop(0)
+
             return None
 
     def _character_vote_internal(self):
@@ -131,8 +153,7 @@ class PlateValidator:
 
     def mark_denied(self, plate_text):
         with self.mutex:
-            self.denied_plate = plate_text
-            self.denied_timestamp = time.time()
+            self.denied_plates[plate_text] = time.time()
             self.locked_plate = None
             self.reads.clear()
 
@@ -142,10 +163,12 @@ class PlateValidator:
             self.reads.clear()
 
     def _is_recently_denied_internal(self, plate_text):
-        if self.denied_plate == plate_text:
-            if (time.time() - self.denied_timestamp) < Config.DENIED_COOLDOWN_SECONDS:
+        current_time = time.time()
+        if plate_text in self.denied_plates:
+            if (current_time - self.denied_plates[plate_text]) < Config.DENIED_COOLDOWN_SECONDS:
                 return True
-            self.denied_plate = None
+            else:
+                del self.denied_plates[plate_text]
         return False
 
     def _is_locked_internal(self):
@@ -181,7 +204,6 @@ class RTSPCapture:
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
-        # BLOQUEO DE ARRANQUE: Esperar hasta 5 segundos a recibir el primer frame real
         print("[STREAM] Esperando el primer fotograma de la cámara...")
         start_time = time.time()
         while self.frame is None and (time.time() - start_time) < 5.0:
@@ -455,14 +477,12 @@ class ALPRSystem:
                 self.current_detections = render_data
 
     def _open_capture(self):
-        # return cv2.VideoCapture(Config.VIDEO_SOURCE)
         return RTSPCapture(Config.VIDEO_SOURCE)
 
     def start(self):
         print("[SISTEMA] Iniciando pipeline Productor-Consumidor...")
         threading.Thread(target=self.process_pipeline, daemon=True).start()
 
-        # Conectar al WebSocket del backend de Node.js en el puerto 3000
         try:
             sio.connect(Config.SOCKET_SERVER_URL)
         except Exception as e:
@@ -564,7 +584,7 @@ class ALPRSystem:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-            time.sleep(0.03) 
+            time.sleep(0.03)
 
         cap.release()
         cv2.destroyAllWindows()

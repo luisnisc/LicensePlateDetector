@@ -57,7 +57,6 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Cliente conectado: ${socket.id}`);
 
-  // Canal WebSocket para recibir y difundir el streaming de la cámara
   socket.on('video_frame', (frameBuffer) => {
     socket.broadcast.emit('video_frame', frameBuffer);
   });
@@ -96,7 +95,7 @@ const checkPlateStmt = db.prepare(`
     WHERE plate = ?
       AND (valid_until IS NULL OR datetime(valid_until) > datetime('now'))
 `);
-const insertLogStmt = db.prepare('INSERT INTO access_logs (plate, confidence, camera_id, status) VALUES (?, ?, ?, ?)');
+const insertLogStmt = db.prepare('INSERT INTO access_logs (plate, confidence, camera_id, status, timestamp) VALUES (?, ?, ?, ?, ?)');
 
 const insertPlateStmt = db.prepare(`
     INSERT INTO whitelist (plate, owner_name, valid_until)
@@ -161,13 +160,31 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
+  
+
+  const timestamp = new Date().toISOString();
+
+
 
   if (validRecord) {
     lastAccessLog.set(plate, now);
     triggerRelayHardware();
   }
 
-  const info = insertLogStmt.run(plate, confidence, camera_id, status);
+  const info = insertLogStmt.run(
+    plate,
+    confidence,
+    camera_id,
+    status,
+    timestamp
+  );
+
+  const savedLog = db.prepare(`
+    SELECT id, plate, timestamp
+    FROM access_logs
+    WHERE id = ?
+  `).get(info.lastInsertRowid);
+
 
   const newLog = {
     id: info.lastInsertRowid,
@@ -175,7 +192,7 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
     confidence,
     camera_id,
     status,
-    timestamp: new Date().toISOString()
+    timestamp
   };
 
   io.emit('new_log', newLog);

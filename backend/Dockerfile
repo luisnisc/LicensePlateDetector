@@ -13,6 +13,10 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache tzdata
+ENV TZ=Europe/Madrid
+# -----------------------
+
 RUN mkdir -p /app/data
 
 COPY --from=builder /app /app
