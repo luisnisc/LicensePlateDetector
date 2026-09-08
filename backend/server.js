@@ -8,6 +8,10 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
 
+const path = require('path');
+const dbPath = path.join(__dirname, 'data', 'access_control.sqlite');
+const db = new Database(dbPath);
+
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-lpr'
@@ -74,7 +78,6 @@ app.use(cors({
 
 app.use(express.json());
 
-const db = new Database('access_control.sqlite');
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS whitelist (

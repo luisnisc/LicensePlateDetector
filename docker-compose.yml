@@ -8,7 +8,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - sqlite_data:/app
+      - sqlite_data:/app/data
     environment:
       - TZ=Europe/Madrid
       - NODE_ENV=production
