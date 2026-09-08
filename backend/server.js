@@ -5,8 +5,12 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
+const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt')
 
 require('dotenv').config();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-lpr'
 
 const API_TOKEN = process.env.LPR_API_TOKEN || 'puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf';
 
@@ -87,7 +91,19 @@ db.exec(`
         status TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    );
 `);
+
+const checkUserStmt = db.prepare('SELECT * FROM users WHERE username = ?');
+if (!checkUserStmt.get('admin')) {
+  const hash = bcrypt.hashSync('admin123', 10);
+  db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('admin', hash);
+  console.log('[SISTEMA] Usuario por defecto creado: admin / admin123');
+}
 
 const checkPlateStmt = db.prepare(`
     SELECT plate, owner_name
@@ -111,6 +127,63 @@ const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
+
+app.post('/api/v1/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    console.log(`[LOGIN] Intento de acceso. Usuario recibido: '${username}'`);
+
+    if (!username || password === undefined || password === null) {
+      console.log('[LOGIN] Rechazado: Falta usuario o contraseña en la petición.');
+      return res.status(400).json({ error: 'El usuario y contraseña son obligatorios' });
+    }
+
+    const user = checkUserStmt.get(username);
+
+    if (!user) {
+      console.log('[LOGIN] Rechazado: El usuario no existe en la base de datos.');
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    if (!user.password) {
+      console.log('[LOGIN] Rechazado: El usuario existe pero su hash de contraseña está vacío.');
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    const isValid = bcrypt.compareSync(password, user.password);
+
+    if (isValid) {
+      console.log('[LOGIN] Acceso concedido. Generando JWT.');
+      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '8h' });
+      return res.json({ token });
+    } else {
+      console.log('[LOGIN] Rechazado: La contraseña no coincide.');
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+  } catch (error) {
+    console.error('[LOGIN FATAL ERROR]', error.message);
+    return res.status(500).json({ error: 'Error interno del servidor en el login' });
+  }
+});
+
+
+
+const authenticateWeb = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Sesión caducada o token inválido' });
+    req.user = user;
+    next();
+  });
+};
+
+
 
 /**
  * @openapi
@@ -160,7 +233,7 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
-  
+
 
   const timestamp = new Date().toISOString();
 
@@ -245,9 +318,9 @@ function triggerRelayHardware() { }
  *       400:
  *         description: Datos de entrada no válidos.
  */
-app.get('/api/v1/whitelist', (req, res) => res.status(200).json(getAllPlatesStmt.all()));
+app.get('/api/v1/whitelist', authenticateWeb, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
-app.post('/api/v1/whitelist', (req, res) => {
+app.post('/api/v1/whitelist', authenticateWeb, (req, res) => {
   const { plate, owner_name, valid_until } = req.body;
 
   if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
@@ -267,7 +340,7 @@ app.post('/api/v1/whitelist', (req, res) => {
   res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
 
-app.delete('/api/v1/whitelist/:plate', (req, res) => {
+app.delete('/api/v1/whitelist/:plate', authenticateWeb, (req, res) => {
   const info = deletePlateStmt.run(req.params.plate);
   if (info.changes > 0) {
     io.emit('plate_removed', { plate: req.params.plate });
@@ -277,9 +350,9 @@ app.delete('/api/v1/whitelist/:plate', (req, res) => {
   }
 });
 
-app.get('/api/v1/logs', (req, res) => res.status(200).json(getAllLogsStmt.all()));
+app.get('/api/v1/logs', authenticateWeb, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
-app.delete('/api/v1/logs', (req, res) => {
+app.delete('/api/v1/logs', authenticateWeb, (req, res) => {
   try {
     const info = cleanLogsStmt.run();
     io.emit('logs_cleared');

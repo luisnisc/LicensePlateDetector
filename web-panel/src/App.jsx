@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useLprData } from './hooks/useLprData';
 import { CameraStream } from './components/CameraStream';
@@ -11,6 +12,13 @@ import './App.css';
 function App() {
   const { whitelist, logs, API_URL } = useLprData();
 
+  // --- ESTADOS DE AUTENTICACIÓN ---
+  const [token, setToken] = useState(localStorage.getItem('jwt_token'));
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // --- MODO OSCURO ---
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -36,8 +44,82 @@ function App() {
     });
   }, [isDarkMode]);
 
+  // --- MANEJADOR DE LOGIN ---
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post(`${API_URL}/api/v1/login`, { username, password });
+      localStorage.setItem('jwt_token', res.data.token);
+      setToken(res.data.token);
+      setLoginError('');
+      window.location.reload(); // Recarga limpia para que el hook de datos pille el token
+    } catch (err) {
+      setLoginError('Usuario o contraseña incorrectos');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('jwt_token');
+    setToken(null);
+    window.location.reload();
+  };
+
+  // --- RENDERIZADO CONDICIONAL: PANTALLA DE LOGIN ---
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-4 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-8 w-full max-w-sm transition-colors">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Panel LPR</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Identifícate para continuar</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Usuario"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              required
+            />
+
+            {loginError && <p className="text-red-500 text-xs font-medium text-center">{loginError}</p>}
+
+            <button
+              type="submit"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors mt-2"
+            >
+              Entrar
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDERIZADO: DASHBOARD PRINCIPAL ---
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex justify-center p-4 md:p-8 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex flex-col items-center p-4 md:p-8 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
+
+      {/* Botón de Cerrar Sesión en la parte superior derecha */}
+      <div className="w-full max-w-5xl flex justify-end mb-4">
+        <button
+          onClick={handleLogout}
+          className="text-xs font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2 bg-white dark:bg-zinc-900"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
         {/* Columna Izquierda */}

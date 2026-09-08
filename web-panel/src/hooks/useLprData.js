@@ -29,15 +29,26 @@ export function useLprData() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return; // Si no hay token, no intenta cargar datos
+
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
       try {
         const [whitelistRes, logsRes] = await Promise.all([
-          axios.get(`${API_URL}/api/v1/whitelist`),
-          axios.get(`${API_URL}/api/v1/logs`)
+          axios.get(`${API_URL}/api/v1/whitelist`, config),
+          axios.get(`${API_URL}/api/v1/logs`, config)
         ]);
         setWhitelist(whitelistRes.data);
         setLogs(logsRes.data);
       } catch (error) {
-        console.error("Error al cargar datos:", error);
+        console.error("Error al cargar datos. ¿Sesión caducada?", error);
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem('jwt_token'); // Limpia si caducó
+          window.location.reload();
+        }
       }
     };
     fetchData();
