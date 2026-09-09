@@ -47,6 +47,22 @@ const swaggerOptions = {
         description: 'Servidor Local',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT para el panel web. Requiere iniciar sesión.',
+        },
+        apiTokenAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'Authorization',
+          description: 'Token estático (API_TOKEN) exclusivo para el hardware/cámaras. Enviar como: Bearer <TOKEN>',
+        }
+      }
+    }
   },
   apis: ['./server.js'],
 };
@@ -135,6 +151,38 @@ const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
 
+
+/**
+ * @openapi
+ * /api/v1/login:
+ *   post:
+ *     summary: Inicia sesión en el panel web
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "admin"
+ *               password:
+ *                 type: string
+ *                 example: "Filip@2807"
+ *     responses:
+ *       200:
+ *         description: Login exitoso, devuelve el token JWT
+ *       400:
+ *         description: Petición mal formada (faltan credenciales)
+ *       401:
+ *         description: Usuario o contraseña incorrectos
+ */
 app.post('/api/v1/login', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -206,7 +254,9 @@ const requireAdmin = (req, res, next) => {
  *   post:
  *     summary: Procesa una detección de matrícula enviada por una cámara LPR
  *     tags:
- *       - Access Control
+ *       - Access Control (Hardware)
+ *     security:
+ *       - apiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -228,11 +278,14 @@ const requireAdmin = (req, res, next) => {
  *     responses:
  *       200:
  *         description: Acceso permitido.
+ *       401:
+ *         description: Token de API inválido o ausente.
  *       403:
  *         description: Acceso denegado (matrícula no en whitelist o caducada).
  *       429:
  *         description: Solicitud ignorada por Cooldown activo.
  */
+
 app.post('/api/v1/access', authenticateToken, (req, res) => {
   const { plate, confidence, camera_id } = req.body;
 
@@ -297,15 +350,21 @@ function triggerRelayHardware() { }
  *   get:
  *     summary: Obtiene la lista completa de matrículas autorizadas
  *     tags:
- *       - Whitelist
+ *       - Whitelist (Web Panel)
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Lista devuelta correctamente.
+ *       401:
+ *         description: Token JWT inválido o ausente.
  *
  *   post:
- *     summary: Añade o actualiza una matrícula en la whitelist (Upsert)
+ *     summary: Añade o actualiza una matrícula en la whitelist (Solo Admins)
  *     tags:
- *       - Whitelist
+ *       - Whitelist (Web Panel)
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -326,13 +385,17 @@ function triggerRelayHardware() { }
  *                 type: string
  *                 format: date-time
  *                 nullable: true
+ *                 description: "Fecha de caducidad opcional. Si es null, el acceso es permanente."
  *                 example: "2026-12-31T23:59:59.000Z"
  *     responses:
  *       201:
  *         description: Matrícula guardada correctamente.
  *       400:
  *         description: Datos de entrada no válidos.
+ *       403:
+ *         description: Permisos insuficientes (requiere rol admin).
  */
+
 app.get('/api/v1/whitelist', authenticateWeb, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
 app.post('/api/v1/whitelist', authenticateWeb, requireAdmin, (req, res) => {
@@ -355,6 +418,31 @@ app.post('/api/v1/whitelist', authenticateWeb, requireAdmin, (req, res) => {
   res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
 
+/**
+ * @openapi
+ * /api/v1/whitelist/{plate}:
+ *   delete:
+ *     summary: Elimina una matrícula de la whitelist (Solo Admins)
+ *     tags:
+ *       - Whitelist (Web Panel)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: plate
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Matrícula a eliminar
+ *     responses:
+ *       200:
+ *         description: Matrícula eliminada correctamente.
+ *       403:
+ *         description: Permisos insuficientes (requiere rol admin).
+ *       404:
+ *         description: Matrícula no encontrada.
+ */
+
 app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res) => {
   const info = deletePlateStmt.run(req.params.plate);
   if (info.changes > 0) {
@@ -364,6 +452,34 @@ app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res)
     res.status(404).json({ error: 'No encontrada' });
   }
 });
+
+/**
+ * @openapi
+ * /api/v1/logs:
+ *   get:
+ *     summary: Obtiene el historial de accesos
+ *     tags:
+ *       - Logs (Web Panel)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Historial de registros devuelto.
+ *
+ *   delete:
+ *     summary: Purga todo el historial de accesos (Solo Admins)
+ *     tags:
+ *       - Logs (Web Panel)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Historial eliminado correctamente.
+ *       403:
+ *         description: Permisos insuficientes (requiere rol admin).
+ *       500:
+ *         description: Error interno de base de datos.
+ */
 
 app.get('/api/v1/logs', authenticateWeb, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
