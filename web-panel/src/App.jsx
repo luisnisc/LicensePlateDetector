@@ -144,7 +144,7 @@ function App() {
       <div className="w-full max-w-5xl flex justify-end mb-4">
         <button
           onClick={handleLogout}
-          className="text-xs cursor-pointer font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2 bg-white dark:bg-zinc-900"
+          className="absolute right-0 top-0 mt-4 mr-4 text-xs cursor-pointer font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2 bg-white dark:bg-zinc-900"
         >
           Cerrar sesión
         </button>
