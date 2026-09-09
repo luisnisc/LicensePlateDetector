@@ -39,7 +39,7 @@ class Config:
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
-    ROI_BOX = (300, 185, 2000, 1000)
+    ROI_BOX = (300, 190, 2000, 1000)
 
     STABILITY_FRAMES: int = 5
     STABILITY_MOVEMENT_PX: int = 15

@@ -1,9 +1,23 @@
 const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'access_control.sqlite');
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'access_control.sqlite');
 const db = new Database(dbPath);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  );
+`);
 
 const args = process.argv.slice(2);
 const username = args[0];
@@ -28,7 +42,7 @@ try {
   const insertStmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
   insertStmt.run(cleanUsername, hash);
 
-  console.log(`\n✅ ÉXITO: Usuario '${cleanUsername}' creado correctamente en la BD local.\n`);
+  console.log(`\n✅ ÉXITO: Usuario '${cleanUsername}' creado correctamente en la BD.\n`);
 
 } catch (error) {
   console.error('\n❌ ERROR FATAL en la base de datos:', error.message, '\n');
