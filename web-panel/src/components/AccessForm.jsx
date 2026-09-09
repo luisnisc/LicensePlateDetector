@@ -12,7 +12,6 @@ export function AccessForm({ whitelist, API_URL, customSwal }) {
     const inputPlate = e.target.value.toUpperCase();
     setPlate(inputPlate);
 
-    // Autocompletado si la matrícula ya existe
     const existingRecord = whitelist.find(item => item.plate === inputPlate);
     if (existingRecord) {
       setOwnerName(existingRecord.owner_name || '');

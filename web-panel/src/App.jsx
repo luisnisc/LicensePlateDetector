@@ -31,12 +31,22 @@ axios.interceptors.response.use(
   }
 );
 
+const decodeJWT = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch (e) {
+    return null;
+  }
+};
+
 function App() {
   const { whitelist, logs, API_URL } = useLprData();
 
   // --- ESTADOS DE AUTENTICACIÓN ---
   const [token, setToken] = useState(localStorage.getItem('jwt_token'));
-  const [username, setUsername] = useState('');
+  const userPayload = token ? decodeJWT(token) : null;
+  const isAdmin = userPayload?.role === 'admin'; const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -140,24 +150,25 @@ function App() {
         </button>
       </div>
 
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+      <div className={`w-full max-w-5xl grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : 'md:max-w-2xl mx-auto'} gap-6 items-start`}>
 
-        {/* Columna Izquierda */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl dark:shadow-2xl p-6 sm:p-8 transition-colors">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">Añadir accesos</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Gestión de matrículas y titulares</p>
+        {/* Renderizado condicional: Solo mostramos la columna izquierda a los admins */}
+        {isAdmin && (
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8">
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Añadir accesos</h1>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
+            </div>
+            <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
+            <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
           </div>
-          <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
-          <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
-        </div>
+        )}
 
-        {/* Columna Derecha */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl dark:shadow-2xl p-6 sm:p-8 flex flex-col gap-6 transition-colors">
+        {/* Columna Derecha (Para todos) */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
           <CameraStream />
           <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 transition-colors">
-            <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4 transition-colors">Estadísticas de Acceso</h3>
+          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
             <StatsChart logs={logs} isDarkMode={isDarkMode} />
           </div>
         </div>

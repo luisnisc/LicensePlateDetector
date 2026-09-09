@@ -22,13 +22,13 @@ db.exec(`
 const args = process.argv.slice(2);
 const username = args[0];
 const password = args[1];
+const role = args[2];
 
 if (!username || !password) {
   console.error('\n❌ Error: Faltan argumentos.');
-  console.log('💡 Uso correcto: node createUser.js <nombre_usuario> <contraseña>\n');
+  console.log('💡 Uso correcto: node createUser.js <usuario> <contraseña> [admin|viewer]\n');
   process.exit(1);
 }
-
 try {
   const cleanUsername = username.trim().toLowerCase();
 
@@ -39,10 +39,10 @@ try {
   }
 
   const hash = bcrypt.hashSync(password, 10);
-  const insertStmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-  insertStmt.run(cleanUsername, hash);
+  const insertStmt = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
+  insertStmt.run(cleanUsername, hash, role);
 
-  console.log(`\n✅ ÉXITO: Usuario '${cleanUsername}' creado correctamente en la BD.\n`);
+  console.log(`\n✅ ÉXITO: Usuario '${cleanUsername}' creado con el rol '${role ? role : 'viewer'}'.\n`);
 
 } catch (error) {
   console.error('\n❌ ERROR FATAL en la base de datos:', error.message, '\n');

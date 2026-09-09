@@ -100,7 +100,11 @@ db.exec(`
         password TEXT
     );
 `);
-
+try {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
+  console.log("[SISTEMA] Columna 'role' añadida a los usuarios existentes.");
+} catch (e) {
+}
 const checkUserStmt = db.prepare('SELECT * FROM users WHERE username = ?');
 if (!checkUserStmt.get('admin')) {
   const hash = bcrypt.hashSync('Filip@2807', 10);
@@ -158,7 +162,7 @@ app.post('/api/v1/login', (req, res) => {
 
     if (isValid) {
       console.log('[LOGIN] Acceso concedido. Generando JWT.');
-      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '8h' });
+      const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
       return res.json({ token });
     } else {
       console.log('[LOGIN] Rechazado: La contraseña no coincide.');
@@ -186,6 +190,14 @@ const authenticateWeb = (req, res, next) => {
   });
 };
 
+const requireAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    console.warn(`[SEGURIDAD] Usuario '${req.user.username}' intentó una acción de administrador.`);
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador.' });
+  }
+}
 
 
 /**
@@ -323,7 +335,7 @@ function triggerRelayHardware() { }
  */
 app.get('/api/v1/whitelist', authenticateWeb, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
-app.post('/api/v1/whitelist', authenticateWeb, (req, res) => {
+app.post('/api/v1/whitelist', authenticateWeb, requireAdmin, (req, res) => {
   const { plate, owner_name, valid_until } = req.body;
 
   if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
@@ -343,7 +355,7 @@ app.post('/api/v1/whitelist', authenticateWeb, (req, res) => {
   res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
 
-app.delete('/api/v1/whitelist/:plate', authenticateWeb, (req, res) => {
+app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res) => {
   const info = deletePlateStmt.run(req.params.plate);
   if (info.changes > 0) {
     io.emit('plate_removed', { plate: req.params.plate });
@@ -355,7 +367,7 @@ app.delete('/api/v1/whitelist/:plate', authenticateWeb, (req, res) => {
 
 app.get('/api/v1/logs', authenticateWeb, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
-app.delete('/api/v1/logs', authenticateWeb, (req, res) => {
+app.delete('/api/v1/logs', authenticateWeb, requireAdmin, (req, res) => {
   try {
     const info = cleanLogsStmt.run();
     io.emit('logs_cleared');
