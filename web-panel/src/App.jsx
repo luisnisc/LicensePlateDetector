@@ -185,7 +185,7 @@ function App() {
             </div>
 
             <div className='mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800'>
-              <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
+              <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} isAdmin={isAdmin} />
             </div>
           </div>
         </div>
