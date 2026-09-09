@@ -43,9 +43,13 @@ const swaggerOptions = {
     },
     servers: [
       {
+        url: 'http://fsccv:3000',
+        description: 'Servidor Producción'
+      },
+      {
         url: 'http://localhost:3000',
         description: 'Servidor Local',
-      },
+      }
     ],
     components: {
       securitySchemes: {
