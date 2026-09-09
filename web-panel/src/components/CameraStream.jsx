@@ -63,7 +63,7 @@ export function CameraStream() {
       <div className="relative w-full aspect-video bg-zinc-100 dark:bg-zinc-950 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-colors">
         <canvas
           ref={canvasRef}
-          className="w-full h-full object-cover"
+          className="w-full h-48 object-cover"
         />
         {!isStreamActive && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 text-xs font-mono p-4 text-center bg-zinc-950/80">

@@ -150,10 +150,11 @@ function App() {
         </button>
       </div>
 
-      <div className={`w-full max-w-5xl grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : 'md:max-w-2xl mx-auto'} gap-6 items-start`}>
 
-        {/* Renderizado condicional: Solo mostramos la columna izquierda a los admins */}
-        {isAdmin && (
+      {/* Renderizado condicional: Solo mostramos la columna izquierda a los admins */}
+      {isAdmin && (
+
+        <div className={`w-full max-w-5xl grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : 'md:max-w-2xl mx-auto'} gap-6 items-start`}>
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8">
             <div className="mb-8">
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Añadir accesos</h1>
@@ -162,18 +163,33 @@ function App() {
             <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
             <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
           </div>
-        )}
 
-        {/* Columna Derecha (Para todos) */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
-          <CameraStream />
-          <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-            <StatsChart logs={logs} isDarkMode={isDarkMode} />
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
+            <CameraStream />
+            <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
+            <div className="border-t border-zinc-201 dark:border-zinc-800 pt-6 ">
+              <StatsChart logs={logs} isDarkMode={isDarkMode} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isAdmin && (
+        <div>
+          <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 '>
+            <div className="flex flex-row gap-6">
+              <CameraStream />
+              <div className="pt-8 ">
+                <StatsChart logs={logs} isDarkMode={isDarkMode} isAdmin={isAdmin} />
+              </div>
+            </div>
+            <div className='mt-6'>
+              <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
+            </div>
           </div>
         </div>
 
-      </div>
+      )}
     </div>
   );
 }

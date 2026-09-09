@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import Chart from 'react-apexcharts';
 
-export function StatsChart({ logs, isDarkMode }) {
+export function StatsChart({ logs, isDarkMode, isAdmin }) {
   const stats = useMemo(() => {
     const allowed = logs.filter(item =>
       item.status?.toLowerCase().includes('permitido') || item.status === 'OK'
@@ -44,7 +44,7 @@ export function StatsChart({ logs, isDarkMode }) {
 
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
-      <div className="w-[140px] h-[140px] flex-shrink-0 flex items-center justify-center">
+      <div className={` w-35 ${isAdmin ? "h-35" : "h-48"} shrink-0 flex items-center justify-center`}>
         <Chart
           options={chartOptions}
           series={[stats.allowed, stats.denied]}
@@ -73,6 +73,6 @@ export function StatsChart({ logs, isDarkMode }) {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
