@@ -177,18 +177,18 @@ function App() {
       {!isAdmin && (
         <div>
           <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 '>
-            <div className="flex flex-row gap-6">
-              <CameraStream />
-              <div className="pt-8 ">
-                <StatsChart logs={logs} isDarkMode={isDarkMode} isAdmin={isAdmin} />
-              </div>
+
+            {/* Nuevo contenedor Grid para alineación perfecta */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <CameraStream isAdmin={isAdmin} />
+              <StatsChart logs={logs} isDarkMode={isDarkMode} isAdmin={isAdmin} />
             </div>
-            <div className='mt-6'>
+
+            <div className='mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800'>
               <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
             </div>
           </div>
         </div>
-
       )}
     </div>
   );

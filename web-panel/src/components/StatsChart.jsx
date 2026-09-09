@@ -43,17 +43,20 @@ export function StatsChart({ logs, isDarkMode, isAdmin }) {
   }
 
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
-      <div className={` w-35 ${isAdmin ? "h-35" : "h-48"} shrink-0 flex items-center justify-center`}>
+    <div className={`w-full ${!isAdmin ? 'max-md:py-6 md:aspect-video' : 'py-6'} bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 md:p-6 flex flex-col xl:flex-row items-center justify-center gap-6 transition-colors`}>
+
+      {/* Hacemos el gráfico responsivo en lugar de darle píxeles fijos */}
+      <div className={`${!isAdmin ? 'w-1/2 aspect-square max-h-[140px]' : 'h-36 w-36'} shrink-0 flex items-center justify-center`}>
         <Chart
           options={chartOptions}
           series={[stats.allowed, stats.denied]}
           type="donut"
-          width="140"
-          height="140"
+          width="100%"
+          height="100%"
         />
       </div>
-      <div className="flex flex-col gap-3 w-full sm:w-auto flex-1">
+
+      <div className="flex flex-col gap-3 w-full flex-1">
         <div className="flex items-center justify-between gap-6 bg-emerald-50 dark:bg-emerald-400/5 border border-emerald-200 dark:border-emerald-400/10 px-3 py-2 rounded-lg transition-colors">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
@@ -73,6 +76,6 @@ export function StatsChart({ logs, isDarkMode, isAdmin }) {
           </div>
         </div>
       </div>
-    </div >
+    </div>
   );
 }

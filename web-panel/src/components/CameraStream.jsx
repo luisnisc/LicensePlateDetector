@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { socket } from '../socket'; // Importa tu instancia global de socket.io
 
-export function CameraStream() {
+export function CameraStream({ isAdmin }) {
   const [isStreamActive, setIsStreamActive] = useState(false);
   const canvasRef = useRef(null);
   const timeoutRef = useRef(null);
@@ -44,7 +44,7 @@ export function CameraStream() {
   }, []);
 
   return (
-    <div>
+    <div className="flex flex-col w-full h-full justify-end">
       <div className="mb-3 flex justify-between items-center">
         <h2 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white uppercase transition-colors">
           Cámara LPR en Directo (WebSocket)
@@ -63,7 +63,7 @@ export function CameraStream() {
       <div className="relative w-full aspect-video bg-zinc-100 dark:bg-zinc-950 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-colors">
         <canvas
           ref={canvasRef}
-          className="w-full h-48 object-cover"
+          className="object-cover w-full h-full"
         />
         {!isStreamActive && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 text-xs font-mono p-4 text-center bg-zinc-950/80">
