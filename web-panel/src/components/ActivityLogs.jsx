@@ -51,9 +51,10 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin }) {
         </div>
       ) : (
         <ul className="max-h-[350px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
-          {logs.map((item, index) => {
+            {logs.map((item, index) => {
             const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
-            return (
+              return (
+
               <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl gap-3 transition-colors">
                 <div className="flex flex-row justify-between items-center gap-4">
                   <span className="font-mono text-zinc-900 dark:text-zinc-100 text-lg tracking-widest transition-colors">{item.plate}</span>
