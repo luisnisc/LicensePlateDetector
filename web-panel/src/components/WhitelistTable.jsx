@@ -20,35 +20,41 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
   );
 
   return (
-    <div>
-      <h2 className="text-xs font-extrabold text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center transition-colors">
-        <span>Permitidos</span>
+    <div className="flex flex-col h-full">
 
-        <div className="flex items-center gap-2">
-          <input type="text" placeholder="Buscar matrícula o titular..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-300 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all [color-scheme:light] dark:[color-scheme:dark]" />
-          <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[15px] transition-colors">
-            {filteredWhitelist.length}
+      <div className="mb-4">
+        <label className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">
+          Registro de Permitidos
+          <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] transition-colors">
+            {filteredWhitelist.length} {searchTerm && `/ ${whitelist.length}`}
           </span>
-        </div>
-      </h2>
+        </label>
+        <input
+          type="text"
+          placeholder="Buscar por matrícula o titular..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+        />
+      </div>
 
       {whitelist.length === 0 ? (
-        <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors">
+        <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors mt-2">
           Base de datos vacía
         </div>
       ) : filteredWhitelist.length === 0 ? (
-        <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors">
-          No se encontraron resultados para "{searchTerm}"
+        <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors mt-2">
+          No hay resultados para "{searchTerm}"
         </div>
       ) : (
-        <ul className="max-h-[500px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
+        <ul className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar mt-2">
           {filteredWhitelist.map(item => {
             const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
             const formattedDate = item.valid_until ? new Date(item.valid_until).toLocaleDateString('es-ES') : '';
             const formattedTime = item.valid_until ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
 
             return (
-              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3">
+              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors">{item.plate}</span>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors">{item.owner_name}</span>
