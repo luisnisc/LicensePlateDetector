@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import axios from 'axios';
 
 export function WhitelistTable({ whitelist, API_URL, customSwal }) {
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleDelete = async (e, plateToDelete) => {
     e.preventDefault();
@@ -12,20 +14,35 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
     }
   };
 
+  const filteredWhitelist = whitelist.filter(item =>
+    item.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.owner_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div>
-      <h2 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center transition-colors">
+      <h2 className="text-xs font-extrabold text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wider flex justify-between items-center transition-colors">
         <span>Permitidos</span>
-        <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] transition-colors">{whitelist.length}</span>
+
+        <div className="flex items-center gap-2">
+          <input type="text" placeholder="Buscar matrícula o titular..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-300 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all [color-scheme:light] dark:[color-scheme:dark]" />
+          <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[15px] transition-colors">
+            {filteredWhitelist.length}
+          </span>
+        </div>
       </h2>
 
       {whitelist.length === 0 ? (
         <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors">
           Base de datos vacía
         </div>
+      ) : filteredWhitelist.length === 0 ? (
+        <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl transition-colors">
+          No se encontraron resultados para "{searchTerm}"
+        </div>
       ) : (
         <ul className="max-h-[500px] overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar">
-          {whitelist.map(item => {
+          {filteredWhitelist.map(item => {
             const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
             const formattedDate = item.valid_until ? new Date(item.valid_until).toLocaleDateString('es-ES') : '';
             const formattedTime = item.valid_until ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
