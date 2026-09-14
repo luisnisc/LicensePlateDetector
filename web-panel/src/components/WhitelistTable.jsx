@@ -20,8 +20,7 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
   );
 
   return (
-    <div className="flex flex-col h-full">
-
+    <div className="flex flex-col w-full">
       <div className="mb-4">
         <label className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">
           Registro de Permitidos
@@ -47,19 +46,20 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
           No hay resultados para "{searchTerm}"
         </div>
       ) : (
-        <ul className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 custom-scrollbar mt-2">
+        /* Eliminado max-h-[100vh] y flex-1. Fijado a un max-h relativo al diseño (ej. 450px o 500px). Ampliado el pr-2 para separar el scroll del botón de borrar. */
+        <ul className="overflow-y-auto flex flex-col gap-2 pr-2 custom-scrollbar mt-2 max-h-[450px]">
           {filteredWhitelist.map(item => {
             const isExpired = item.valid_until && new Date(item.valid_until) < new Date();
             const formattedDate = item.valid_until ? new Date(item.valid_until).toLocaleDateString('es-ES') : '';
             const formattedTime = item.valid_until ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
 
             return (
-              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors">{item.plate}</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors">{item.owner_name}</span>
+              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3 shrink-0">
+                <div className="flex flex-col gap-1 w-full sm:w-auto overflow-hidden">
+                  <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors truncate">{item.plate}</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors truncate">{item.owner_name}</span>
                 </div>
-                <div className="flex items-center gap-3 justify-between sm:justify-end">
+                <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto shrink-0">
                   {item.valid_until ? (
                     <span className={`text-[10px] px-2 py-1 rounded-md font-mono transition-colors ${isExpired ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
                       {isExpired ? 'CADUCADO' : `${formattedDate} ${formattedTime}`}
