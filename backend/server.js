@@ -178,7 +178,7 @@ const COOLDOWN_MS = 10000;
  *                 example: "admin"
  *               password:
  *                 type: string
- *                 example: "Filip@2807"
+ *                 example: "admin"
  *     responses:
  *       200:
  *         description: Login exitoso, devuelve el token JWT
