@@ -85,8 +85,10 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Cliente conectado: ${socket.id}`);
 
-  socket.on('video_frame', (frameBuffer) => {
-    socket.broadcast.emit('video_frame', frameBuffer);
+  socket.on('video_frame', (data) => {
+    if (data && data.cam_id && data.image) {
+      socket.broadcast.emit(`video_frame_${data.cam_id}`, data.image);
+    }
   });
 });
 
@@ -150,7 +152,9 @@ const insertPlateStmt = db.prepare(`
 const deletePlateStmt = db.prepare('DELETE FROM whitelist WHERE plate = ?');
 const getAllPlatesStmt = db.prepare('SELECT plate, owner_name, valid_until, added_at FROM whitelist ORDER BY added_at DESC');
 const getAllLogsStmt = db.prepare('SELECT * FROM access_logs ORDER BY id DESC');
-const cleanLogsStmt = db.prepare('DELETE FROM access_logs');
+
+const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
+const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 10000;
@@ -294,42 +298,27 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
   const { plate, confidence, camera_id } = req.body;
 
   if (!plate) return res.status(400).json({ error: 'Matrícula no proporcionada' });
+  if (!camera_id) return res.status(400).json({ error: 'Origen (camera_id) no proporcionado' });
 
   const now = Date.now();
-  const lastTime = lastAccessLog.get(plate) || 0;
+  const debounceKey = `${plate}_${camera_id}`;
+  const lastTime = lastAccessLog.get(debounceKey) || 0;
 
   if (now - lastTime < COOLDOWN_MS) {
-    console.log(`[DEBOUNCE] Matrícula ${plate} ignorada (Cooldown).`);
-    return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo' });
+    console.log(`[DEBOUNCE] Matrícula ${plate} ignorada en ${camera_id} (Cooldown).`);
+    return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo para esta cámara' });
   }
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
-
-
   const timestamp = new Date().toISOString();
 
-
-
   if (validRecord) {
-    lastAccessLog.set(plate, now);
-    triggerRelayHardware();
+    lastAccessLog.set(debounceKey, now);
+    triggerRelayHardware(camera_id);
   }
 
-  const info = insertLogStmt.run(
-    plate,
-    confidence,
-    camera_id,
-    status,
-    timestamp
-  );
-
-  const savedLog = db.prepare(`
-    SELECT id, plate, timestamp
-    FROM access_logs
-    WHERE id = ?
-  `).get(info.lastInsertRowid);
-
+  const info = insertLogStmt.run(plate, confidence, camera_id, status, timestamp);
 
   const newLog = {
     id: info.lastInsertRowid,
@@ -342,9 +331,23 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 
   io.emit('new_log', newLog);
 
-  console.log(`[ACCESO ${status}] Matrícula: ${plate} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
-  return res.status(validRecord ? 200 : 403).json({ status, plate });
+  console.log(`[ACCESO ${status}] Matrícula: ${plate} en ${camera_id} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
+  return res.status(validRecord ? 200 : 403).json({ status, plate, camera_id });
 });
+
+function triggerRelayHardware(cameraId) {
+  if (cameraId === 'CAM_ENTRADA_01') {
+    console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
+
+  }
+  else if (cameraId === 'CAM_SALIDA_01') {
+    console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
+
+  }
+  else {
+    console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
+  }
+}
 
 function triggerRelayHardware() { }
 
@@ -487,14 +490,29 @@ app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res)
 
 app.get('/api/v1/logs', authenticateWeb, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
+
 app.delete('/api/v1/logs', authenticateWeb, requireAdmin, (req, res) => {
   try {
-    const info = cleanLogsStmt.run();
-    io.emit('logs_cleared');
-    return res.status(200).json({ message: 'Logs eliminados correctamente', rowsDeleted: info.changes });
+    const { camera_id } = req.query; // Leemos la query: /api/v1/logs?camera_id=CAM_ENTRADA_01
+    let info;
+
+    if (camera_id) {
+      info = cleanLogsByCameraStmt.run(camera_id);
+      io.emit('logs_cleared', { camera_id }); // Notificamos qué cámara se ha limpiado
+      console.log(`[LOGS] Registros de ${camera_id} eliminados por admin.`);
+    } else {
+      info = cleanAllLogsStmt.run();
+      io.emit('logs_cleared', { camera_id: null }); // Limpieza global
+      console.log('[LOGS] Todos los registros han sido eliminados.');
+    }
+
+    return res.status(200).json({
+      message: 'Logs eliminados correctamente',
+      rowsDeleted: info.changes
+    });
   } catch (error) {
     console.error('[DATABASE ERROR]', error);
-    return res.status(500).json({ error: 'Error interno' });
+    return res.status(500).json({ error: 'Error interno al borrar logs' });
   }
 });
 

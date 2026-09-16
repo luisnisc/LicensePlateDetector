@@ -43,14 +43,20 @@ const decodeJWT = (token) => {
 function App() {
   const { whitelist, logs, API_URL } = useLprData();
 
-  // --- ESTADOS DE AUTENTICACIÓN ---
+  const entryLogs = useMemo(() =>
+    logs.filter(log => log.camera_id === 'BARRERA_ACCESO_01'),
+    [logs]);
+
+  const exitLogs = useMemo(() =>
+    logs.filter(log => log.camera_id === 'BARRERA_SALIDA_01'),
+    [logs]);
+
   const [token, setToken] = useState(localStorage.getItem('jwt_token'));
   const userPayload = token ? decodeJWT(token) : null;
   const isAdmin = userPayload?.role === 'admin'; const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // --- MODO OSCURO ---
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -76,7 +82,6 @@ function App() {
     });
   }, [isDarkMode]);
 
-  // --- MANEJADOR DE LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -84,7 +89,7 @@ function App() {
       localStorage.setItem('jwt_token', res.data.token);
       setToken(res.data.token);
       setLoginError('');
-      window.location.reload(); // Recarga limpia para que el hook de datos pille el token
+      window.location.reload();
     } catch (err) {
       setLoginError('Usuario o contraseña incorrectos');
     }
@@ -96,7 +101,6 @@ function App() {
     window.location.reload();
   };
 
-  // --- RENDERIZADO CONDICIONAL: PANTALLA DE LOGIN ---
   if (!token) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-4 font-sans text-zinc-900 dark:text-zinc-100 transition-colors">
@@ -151,11 +155,10 @@ function App() {
       </div>
 
 
-      {/* Renderizado condicional: Solo mostramos la columna izquierda a los admins */}
       {isAdmin && (
+        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start mx-auto">
 
-        <div className={`w-full max-w-5xl grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : 'md:max-w-2xl mx-auto'} gap-6 items-start`}>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8">
+          <div className="lg:col-span-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8">
             <div className="mb-8">
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Añadir accesos</h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
@@ -164,29 +167,51 @@ function App() {
             <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
-            <CameraStream />
-            <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
-            <div className="border-t border-zinc-201 dark:border-zinc-800 pt-6 ">
-              <StatsChart logs={logs} isDarkMode={isDarkMode} />
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
+              <CameraStream titleCam='Camara de Accesos' cameraId='BARRERA_ACCESO_01' />
+              <ActivityLogs logs={entryLogs} API_URL={API_URL} customSwal={customSwal} titleLog="Registro de Accesos" cameraId="BARRERA_SALIDA_01" isAdmin={isAdmin} />
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                <StatsChart logs={entryLogs} isDarkMode={isDarkMode} />
+              </div>
             </div>
+
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
+              <CameraStream titleCam='Camara de salidas' cameraId='BARRERA_SALIDA_01' />
+              <ActivityLogs logs={exitLogs} API_URL={API_URL} customSwal={customSwal} titleLog="Registro de Salidas" cameraId="BARRERA_SALIDA_01" isAdmin={isAdmin} />
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                <StatsChart logs={exitLogs} isDarkMode={isDarkMode} />
+              </div>
+            </div>
+
           </div>
         </div>
       )}
-
       {!isAdmin && (
         <div>
           <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 '>
 
-            {/* Nuevo contenedor Grid para alineación perfecta */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-              <CameraStream isAdmin={isAdmin} />
-              <StatsChart logs={logs} isDarkMode={isDarkMode} isAdmin={isAdmin} />
+            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-stretch">
+
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col justify-between gap-6 h-full">                <CameraStream titleCam='Camara de Accesos' cameraId="BARRERA_ACCESO_01" />
+                <ActivityLogs logs={entryLogs} API_URL={API_URL} customSwal={customSwal} titleLog="Registro de Accesos" cameraId="BARRERA_ACCESO_01" />
+                <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                  <StatsChart logs={entryLogs} isDarkMode={isDarkMode} />
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col justify-between gap-6 h-full">
+                <CameraStream titleCam='Camara de salidas' cameraId="BARRERA_SALIDA_01" />
+                <ActivityLogs logs={exitLogs} API_URL={API_URL} customSwal={customSwal} titleLog="Registro de Salidas" cameraId="BARRERA_SALIDA_01" />
+                <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+                  <StatsChart logs={exitLogs} isDarkMode={isDarkMode} />
+                </div>
+              </div>
+
             </div>
 
-            <div className='mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800'>
-              <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} isAdmin={isAdmin} />
-            </div>
+
           </div>
         </div>
       )}
