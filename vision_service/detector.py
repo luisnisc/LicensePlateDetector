@@ -35,7 +35,7 @@ class Config:
     REQUIRED_MATCHES: int = 4
     MAX_ATTEMPTS: int = 6
     COOLDOWN_SECONDS: int = 5
-    DENIED_COOLDOWN_SECONDS: int = 120
+    DENIED_COOLDOWN_SECONDS: int = 60
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
@@ -364,6 +364,8 @@ class ALPRSystem:
     def _scan_plate(self, frame, vehicle_bbox, render_data):
         vx1, vy1, vx2, vy2 = vehicle_bbox
         car_crop = frame[vy1:vy2, vx1:vx2]
+
+        # cv2.imwrite("debug_car_crop.jpg", car_crop)
         if car_crop.size == 0:
             return
 
@@ -396,12 +398,15 @@ class ALPRSystem:
             plate_only_crop = car_crop[c_y1:c_y2, c_x1:c_x2]
             if plate_only_crop.size == 0:
                 continue
-
+            # cv2.imwrite("debug_plate_only.jpg", plate_only_crop)
             blur_flag, _ = self.is_blur(plate_only_crop)
             if blur_flag:
                 continue
 
             enhanced_plate = self.enhance_image(plate_only_crop)
+
+            # cv2.imwrite("debug_plate_final.jpg", enhanced_plate)
+
             ocr_results = self.reader.ocr(enhanced_plate, cls=False)
 
             if ocr_results and ocr_results[0]:
@@ -513,7 +518,6 @@ class ALPRSystem:
 
             reconnect_attempts = 0
 
-            # Optimización de cola
             if self.frame_queue.full():
                 try:
                     self.frame_queue.get_nowait()
