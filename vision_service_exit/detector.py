@@ -23,7 +23,7 @@ from paddleocr import PaddleOCR
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
     CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_SALIDA_01")
-    VIDEO_SOURCE = 2
+    VIDEO_SOURCE = 0
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
