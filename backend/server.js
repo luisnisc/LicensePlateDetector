@@ -213,9 +213,17 @@ app.post('/api/v1/login', (req, res) => {
     const isValid = bcrypt.compareSync(password, user.password);
 
     if (isValid) {
-      console.log('[LOGIN] Acceso concedido. Generando JWT.');
-      const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
-      return res.json({ token });
+      console.log(`[LOGIN] Acceso concedido a '${user.username}' (Rol: ${user.role}). Generando JWT.`);
+
+      const tokenExpiresIn = user.role === 'admin' ? '8h' : '3650d';
+
+      const token = jwt.sign(
+        { id: user.id, username: user.username, role: user.role },
+        JWT_SECRET,
+        { expiresIn: tokenExpiresIn }
+      );
+
+      return res.json({ token, role: user.role });
     } else {
       console.log('[LOGIN] Rechazado: La contraseña no coincide.');
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
@@ -226,8 +234,6 @@ app.post('/api/v1/login', (req, res) => {
     return res.status(500).json({ error: 'Error interno del servidor en el login' });
   }
 });
-
-
 
 const authenticateWeb = (req, res, next) => {
   const authHeader = req.headers['authorization'];
