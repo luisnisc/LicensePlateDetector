@@ -1,39 +1,46 @@
 import { useEffect, useRef, useState } from 'react';
-import { socket } from '../socket'; // Importa tu instancia global de socket.io
+import { socket } from '../socket';
 
 export function CameraStream({ isAdmin, titleCam, cameraId }) {
   const [isStreamActive, setIsStreamActive] = useState(false);
   const canvasRef = useRef(null);
   const timeoutRef = useRef(null);
 
+  const imgRef = useRef(new Image());
+  const activeStateRef = useRef(false);
+
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     const handleFrame = (arrayBuffer) => {
-      setIsStreamActive(true);
+      if (!activeStateRef.current) {
+        activeStateRef.current = true;
+        setIsStreamActive(true);
+      }
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
+        activeStateRef.current = false;
         setIsStreamActive(false);
       }, 3000);
 
       const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
-      const img = new Image();
+      const url = URL.createObjectURL(blob);
 
-      img.onload = () => {
-
-        if (canvas.width !== img.width || canvas.height !== img.height) {
-          canvas.width = img.width;
-          canvas.height = img.height;
+      imgRef.current.onload = () => {
+        if (canvas.width !== imgRef.current.width || canvas.height !== imgRef.current.height) {
+          canvas.width = imgRef.current.width;
+          canvas.height = imgRef.current.height;
         }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(img.src);
+        ctx.drawImage(imgRef.current, 0, 0);
+        URL.revokeObjectURL(url);
       };
 
-      img.src = URL.createObjectURL(blob);
+      imgRef.current.src = url;
     };
+
     const channelName = `video_frame_${cameraId}`;
     socket.on(channelName, handleFrame);
 
