@@ -282,13 +282,19 @@ class ALPRSystem:
         return variance < Config.BLUR_THRESHOLD, variance
 
     def is_plausible_plate(self, text):
-        if not (4 <= len(text) <= 10):
-            return False
-        if len(set(text)) == 1:
-            return False
-        if Config.PLATE_REGEX and not re.fullmatch(Config.PLATE_REGEX, text):
-            return False
-        return True
+            if not (4 <= len(text) <= 10):
+                return False
+
+            if len(set(text)) == 1:
+                return False
+
+            if text.isalpha():
+                return False
+
+            if text.isdigit():
+                return False
+
+            return True
 
     def _point_in_roi(self, x, y):
         if not Config.ROI_BOX:
