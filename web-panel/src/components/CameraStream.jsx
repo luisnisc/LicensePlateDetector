@@ -1,53 +1,60 @@
 import { useEffect, useRef, useState } from 'react';
-import { socket } from '../socket'; // Importa tu instancia global de socket.io
+import { socket } from '../socket';
 
-export function CameraStream({ isAdmin }) {
+export function CameraStream({ isAdmin, titleCam, cameraId }) {
   const [isStreamActive, setIsStreamActive] = useState(false);
   const canvasRef = useRef(null);
   const timeoutRef = useRef(null);
 
+  const imgRef = useRef(new Image());
+  const activeStateRef = useRef(false);
+
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     const handleFrame = (arrayBuffer) => {
-      setIsStreamActive(true);
+      if (!activeStateRef.current) {
+        activeStateRef.current = true;
+        setIsStreamActive(true);
+      }
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
+        activeStateRef.current = false;
         setIsStreamActive(false);
       }, 3000);
 
       const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
-      const img = new Image();
+      const url = URL.createObjectURL(blob);
 
-      img.onload = () => {
-
-        if (canvas.width !== img.width || canvas.height !== img.height) {
-          canvas.width = img.width;
-          canvas.height = img.height;
+      imgRef.current.onload = () => {
+        if (canvas.width !== imgRef.current.width || canvas.height !== imgRef.current.height) {
+          canvas.width = imgRef.current.width;
+          canvas.height = imgRef.current.height;
         }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(img.src);
+        ctx.drawImage(imgRef.current, 0, 0);
+        URL.revokeObjectURL(url);
       };
 
-      img.src = URL.createObjectURL(blob);
+      imgRef.current.src = url;
     };
 
-    socket.on('video_frame', handleFrame);
+    const channelName = `video_frame_${cameraId}`;
+    socket.on(channelName, handleFrame);
 
     return () => {
-      socket.off('video_frame', handleFrame);
+      socket.off(channelName, handleFrame);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [cameraId]);
 
   return (
     <div className="flex flex-col w-full h-full justify-end">
       <div className="mb-3 flex justify-between items-center">
         <h2 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white uppercase transition-colors">
-          Cámara LPR en Directo (WebSocket)
+          {titleCam}
         </h2>
         {isStreamActive ? (
           <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-mono px-2 py-0.5 rounded-full flex items-center gap-1.5 font-bold border border-red-200 dark:border-red-400/20">
