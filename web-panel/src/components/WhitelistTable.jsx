@@ -61,7 +61,6 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
           No hay resultados para "{searchTerm}"
         </div>
       ) : (
-        /* Eliminado max-h-[100vh] y flex-1. Fijado a un max-h relativo al diseño (ej. 450px o 500px). Ampliado el pr-2 para separar el scroll del botón de borrar. */
         <ul className="overflow-y-auto flex flex-col gap-2 pr-2 custom-scrollbar mt-2 max-h-[450px]">
           {filteredWhitelist.map(item => {
             const isExpired = item.valid_until && new Date(item.valid_until) < new Date();

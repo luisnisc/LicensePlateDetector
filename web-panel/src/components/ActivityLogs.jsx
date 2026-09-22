@@ -49,7 +49,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registro de accesos'}</p>
         </div>
         <div className="flex items-center gap-3">
-
+          {/* Corregido a && */}
           {isAdmin && (
             <button onClick={cleanUpLogsUI} className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-50 dark:bg-red-400/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-400/20 hover:bg-red-100 dark:hover:bg-red-400/20 transition-colors cursor-pointer">
               Limpiar

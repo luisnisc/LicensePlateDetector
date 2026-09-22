@@ -45,7 +45,6 @@ export function StatsChart({ logs, isDarkMode, isAdmin }) {
   return (
     <div className={`w-full ${!isAdmin ? 'max-md:py-6 md:aspect-video' : 'py-6'} bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 md:p-6 flex flex-col xl:flex-row items-center justify-center gap-6 transition-colors`}>
 
-      {/* Hacemos el gráfico responsivo en lugar de darle píxeles fijos */}
       <div className={`${!isAdmin ? 'w-1/2 aspect-square max-h-[140px]' : 'h-36 w-36'} shrink-0 flex items-center justify-center`}>
         <Chart
           options={chartOptions}
