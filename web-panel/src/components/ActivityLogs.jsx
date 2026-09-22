@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cameraId }) {
+export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cameraId, onSelectPlate}) {
 
   const [filter, setFilter] = useState('ALL');
 
@@ -55,7 +55,6 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registro de accesos'}</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Corregido a && */}
           {isAdmin && (
             <button onClick={cleanUpLogsUI} className="text-xs font-semibold px-3 py-1.5 rounded-xl uppercase tracking-wider bg-red-50 dark:bg-red-400/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-400/20 hover:bg-red-100 dark:hover:bg-red-400/20 transition-colors cursor-pointer">
               Limpiar
@@ -106,7 +105,15 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
           {filteredLogs.map((item, index) => {
             const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
             return (
-              <li key={item.id || `log-${item.plate}-${index}`} className="bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl gap-3 transition-colors">
+              <li
+                key={item.id || `log-${item.plate}-${index}`}
+                onClick={() => {
+                  const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
+                  if (isAuthorized && onSelectPlate) {
+                    onSelectPlate(item.plate);
+                  }
+                }}
+                className={`${isAuthorized ? "cursor-pointer" : ""} bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl gap-3 transition-colors`}>
                 <div className="flex flex-row justify-between items-center gap-4">
                   <span className="font-mono text-zinc-900 dark:text-zinc-100 text-lg tracking-widest transition-colors">{item.plate}</span>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">

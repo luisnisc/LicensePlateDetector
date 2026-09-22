@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export function WhitelistTable({ whitelist, API_URL, customSwal }) {
-  const [searchTerm, setSearchTerm] = useState('');
+export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm }) {
+
 
   const handleDelete = async (e, plateToDelete) => {
     e.preventDefault();
@@ -49,6 +49,34 @@ export function WhitelistTable({ whitelist, API_URL, customSwal }) {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
           />
+
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          )}
+        </div>
+
+
+        <div className="absolute inset-y-0 right-0 flex items-center pl-3 pointer-events-none">
+
         </div>
       </div>
 
