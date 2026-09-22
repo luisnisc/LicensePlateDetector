@@ -183,6 +183,7 @@ function App() {
         </button>
       </div>
 
+
       {isAdmin && (
         <div className={`w-full max-w-5xl grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : 'md:max-w-2xl mx-auto'} gap-6 items-start`}>
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8">
@@ -196,7 +197,7 @@ function App() {
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
             <CameraStream />
-            <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} />
+            <ActivityLogs logs={logs} API_URL={API_URL} customSwal={customSwal} isAdmin={isAdmin} />
             <div className="border-t border-zinc-201 dark:border-zinc-800 pt-6 ">
               <StatsChart logs={logs} isDarkMode={isDarkMode} />
             </div>
@@ -207,6 +208,7 @@ function App() {
       {!isAdmin && (
         <div>
           <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 '>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
               <CameraStream isAdmin={isAdmin} />
               <StatsChart logs={logs} isDarkMode={isDarkMode} isAdmin={isAdmin} />

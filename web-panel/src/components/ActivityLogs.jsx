@@ -5,6 +5,12 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
 
   const [filter, setFilter] = useState('ALL');
 
+  if (isAdmin) {
+    console.log("que es admin CO")
+  } else {
+    console.log("que no es admin CO")
+  }
+
   const cleanUpLogsUI = async () => {
     const result = await customSwal.fire({
       title: '¿Estás seguro?',
