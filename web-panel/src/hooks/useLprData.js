@@ -36,7 +36,7 @@ export function useLprData() {
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('jwt_token');
-      if (!token) return; // Si no hay token, no intenta cargar datos
+      if (!token) return; 
 
       const config = {
         headers: { Authorization: `Bearer ${token}` }
