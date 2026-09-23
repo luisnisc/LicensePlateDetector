@@ -110,6 +110,12 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
               <li
                 key={item.id || `log-${item.plate}-${index}`}
                 draggable={isDenied}
+                onClick={() => {
+                  const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
+                  if (isAuthorized && onSelectPlate) {
+                    onSelectPlate(item.plate);
+                  }
+                }}
                 onDragStart={(e) => {
                   if (isDenied) {
                     e.dataTransfer.setData('text/plain', item.plate);
@@ -118,7 +124,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
                 }}
                 className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-all ${isDenied
                   ? 'cursor-grab active:cursor-grabbing border-zinc-200 dark:border-zinc-800 hover:border-red-400 dark:hover:border-red-500/50 hover:shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-800'
+                  : 'cursor-pointer border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-500/50'
                   }`}
               >
                 <div className="flex flex-row justify-between items-center gap-4">
