@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { animate, spring } from 'animejs';
 import axios from 'axios';
 
 export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist }) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const tableContainerRef = useRef(null);
 
   const handleDelete = async (e, plateToDelete) => {
     e.preventDefault();
@@ -37,17 +39,38 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
   const handleDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    if (!isDraggingOver) setIsDraggingOver(true);
+
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+      animate(tableContainerRef.current, {
+        scale: 1.015,
+        duration: 250,
+        ease: 'outCubic'
+      });
+    }
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    setIsDraggingOver(false);
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDraggingOver(false);
+      animate(tableContainerRef.current, {
+        scale: 1,
+        duration: 200,
+        ease: 'outQuad'
+      });
+    }
   };
 
   const handleDrop = async (e) => {
     e.preventDefault();
     setIsDraggingOver(false);
+
+    animate(tableContainerRef.current, {
+      scale: [0.98, 1],
+      duration: 500,
+      ease: spring({ bounce: 0.4, mass: 1 })
+    });
 
     const droppedPlate = e.dataTransfer.getData('text/plain');
     if (!droppedPlate) return;
@@ -107,11 +130,12 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
 
   return (
     <div
+      ref={tableContainerRef}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col w-full transition-all duration-300 rounded-xl p-2 -m-2 ${isDraggingOver
-        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 scale-[1.01] shadow-lg'
+      className={`flex flex-col w-full transition-colors duration-300 rounded-xl p-2 -m-2 ${isDraggingOver
+        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-xl'
         : 'ring-0'
         }`}
     >
@@ -123,7 +147,6 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
           </span>
         </label>
         <div className="relative">
-
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <svg
               className="w-4 h-4 text-zinc-400 dark:text-zinc-500"

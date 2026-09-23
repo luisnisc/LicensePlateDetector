@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { animate } from "animejs"
 
 export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cameraId, onSelectPlate }) {
 
@@ -110,21 +111,49 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
               <li
                 key={item.id || `log-${item.plate}-${index}`}
                 draggable={isDenied}
-                onClick={() => {
-                  const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
-                  if (isAuthorized && onSelectPlate) {
-                    onSelectPlate(item.plate);
-                  }
-                }}
                 onDragStart={(e) => {
-                  if (isDenied) {
-                    e.dataTransfer.setData('text/plain', item.plate);
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }
+                  if (!isDenied) return;
+
+                  const targetEl = e.currentTarget;
+                  e.dataTransfer.setData('text/plain', item.plate);
+                  e.dataTransfer.effectAllowed = 'copy';
+
+                  const dragCard = targetEl.cloneNode(true);
+
+                  dragCard.style.position = 'absolute';
+                  dragCard.style.top = '-1000px'; // Fuera de la vista inicial
+                  dragCard.style.width = `${targetEl.offsetWidth}px`; // Mismo ancho que el original
+                  dragCard.style.opacity = '1';
+                  dragCard.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.4)';
+                  dragCard.style.borderRadius = '12px';
+                  dragCard.style.zIndex = '9999';
+
+                  document.body.appendChild(dragCard);
+
+                  e.dataTransfer.setDragImage(dragCard, 20, 20);
+
+                  setTimeout(() => {
+                    document.body.removeChild(dragCard);
+                    animate(targetEl, {
+                      opacity: 0.15,
+                      scale: 0.9,
+                      duration: 200,
+                      ease: 'outQuad'
+                    });
+                  }, 0);
                 }}
-                className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-all ${isDenied
-                  ? 'cursor-grab active:cursor-grabbing border-zinc-200 dark:border-zinc-800 hover:border-red-400 dark:hover:border-red-500/50 hover:shadow-md'
-                  : 'cursor-pointer border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-500/50'
+                onDragEnd={(e) => {
+
+                  animate(e.currentTarget, {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 400,
+                    ease: 'outElastic(1, .6)'
+                  });
+                }}
+                className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-colors ${isDenied
+                  ? 'cursor-grab active:cursor-grabbing border-zinc-200 dark:border-zinc-800 hover:border-red-400 dark:hover:border-red-500/50'
+                  : 'border-zinc-200 dark:border-zinc-800'
                   }`}
               >
                 <div className="flex flex-row justify-between items-center gap-4">
