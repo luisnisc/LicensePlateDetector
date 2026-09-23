@@ -54,5 +54,14 @@ export function useLprData() {
     fetchData();
   }, []);
 
-  return { whitelist, logs, API_URL };
+  const fetchWhitelist = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/v1/whitelist`);
+      setWhitelist(res.data);
+    } catch (err) {
+      console.error("Error al actualizar la lista blanca", err);
+    }
+  };
+
+  return { whitelist, logs, API_URL, fetchWhitelist };
 }

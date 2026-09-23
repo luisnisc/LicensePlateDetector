@@ -1,26 +1,120 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm }) {
-
+export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist }) {
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const handleDelete = async (e, plateToDelete) => {
     e.preventDefault();
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
-      customSwal.fire({ title: "Eliminada", text: `Matrícula ${plateToDelete} eliminada`, toast: true, position: "top-end", icon: "info", showConfirmButton: false, timer: 1500, timerProgressBar: true });
+      customSwal.fire({
+        title: "Eliminada",
+        text: `Matrícula ${plateToDelete} eliminada`,
+        toast: true,
+        position: "top-end",
+        icon: "info",
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true
+      });
+
+      if (fetchWhitelist) fetchWhitelist();
     } catch (error) {
-      customSwal.fire({ title: "Error", text: error.response?.data?.error || "Error al eliminar", toast: true, position: "top-end", icon: "error", showConfirmButton: false, timer: 1500, timerProgressBar: true });
+      customSwal.fire({
+        title: "Error",
+        text: error.response?.data?.error || "Error al eliminar",
+        toast: true,
+        position: "top-end",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true
+      });
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+
+    const droppedPlate = e.dataTransfer.getData('text/plain');
+    if (!droppedPlate) return;
+
+    const { value: holderName } = await customSwal.fire({
+      title: 'Autorizar matrícula',
+      text: `Vas a dar de alta la matrícula ${droppedPlate}`,
+      input: 'text',
+      inputLabel: 'Nombre del titular o empresa',
+      inputPlaceholder: 'Ej: Proveedor logístico...',
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      inputValidator: (value) => {
+        if (!value) return 'Debes introducir un nombre de referencia';
+      }
+    });
+
+    if (holderName) {
+      try {
+        await axios.post(`${API_URL}/api/v1/whitelist`, {
+          plate: droppedPlate,
+          owner_name: holderName
+        });
+
+        customSwal.fire({
+          title: 'Añadido',
+          text: 'Matrícula autorizada correctamente.',
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500
+        });
+
+        if (fetchWhitelist) {
+          fetchWhitelist();
+        }
+      } catch (error) {
+        customSwal.fire({
+          title: 'Error',
+          text: error.response?.data?.error || 'No se pudo guardar la matrícula.',
+          icon: 'error',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000
+        });
+      }
     }
   };
 
   const filteredWhitelist = whitelist.filter(item =>
     item.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.owner_name.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.owner_name && item.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
-    <div className="flex flex-col w-full">
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col w-full transition-all duration-300 rounded-xl p-2 -m-2 ${isDraggingOver
+        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 scale-[1.01] shadow-lg'
+        : 'ring-0'
+        }`}
+    >
       <div className="mb-4">
         <label className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider transition-colors">
           Registro de Permitidos
@@ -72,11 +166,6 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
               </svg>
             </button>
           )}
-        </div>
-
-
-        <div className="absolute inset-y-0 right-0 flex items-center pl-3 pointer-events-none">
-
         </div>
       </div>
 

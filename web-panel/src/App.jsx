@@ -42,7 +42,7 @@ const decodeJWT = (token) => {
 };
 
 function App() {
-  const { whitelist, logs, API_URL } = useLprData();
+  const { whitelist, logs, API_URL, fetchWhitelist } = useLprData();
 
   const loginBoxRef = useRef(null);
   const animeScope = useRef(null);
@@ -193,7 +193,7 @@ function App() {
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
             </div>
             <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
-            <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} searchTerm={selectedPlate} setSearchTerm={setSelectedPlate} />
+            <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} searchTerm={selectedPlate} setSearchTerm={setSelectedPlate} fetchWhitelist={fetchWhitelist} />
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
