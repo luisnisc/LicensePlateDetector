@@ -110,6 +110,11 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
             return (
               <li
                 key={item.id || `log-${item.plate}-${index}`}
+                onClick={() => {
+                    if (isAuthorized && onSelectPlate) {
+                      onSelectPlate(item.plate);
+                    }
+                  }}
                 draggable={isDenied}
                 onDragStart={(e) => {
                   if (!isDenied) return;
@@ -121,8 +126,8 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
                   const dragCard = targetEl.cloneNode(true);
 
                   dragCard.style.position = 'absolute';
-                  dragCard.style.top = '-1000px'; // Fuera de la vista inicial
-                  dragCard.style.width = `${targetEl.offsetWidth}px`; // Mismo ancho que el original
+                  dragCard.style.top = '-1000px';
+                  dragCard.style.width = `${targetEl.offsetWidth}px`;
                   dragCard.style.opacity = '1';
                   dragCard.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.4)';
                   dragCard.style.borderRadius = '12px';
@@ -153,7 +158,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
                 }}
                 className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-colors ${isDenied
                   ? 'cursor-grab active:cursor-grabbing border-zinc-200 dark:border-zinc-800 hover:border-red-400 dark:hover:border-red-500/50'
-                  : 'border-zinc-200 dark:border-zinc-800'
+                  : 'cursor-pointer border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-500/50'
                   }`}
               >
                 <div className="flex flex-row justify-between items-center gap-4">
