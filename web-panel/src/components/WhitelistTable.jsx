@@ -2,11 +2,12 @@ import { useState, useRef } from 'react';
 import { animate, spring } from 'animejs';
 import axios from 'axios';
 
-export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist }) {
+export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist, onSelectWhitelistPlate }) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const tableContainerRef = useRef(null);
 
   const handleDelete = async (e, plateToDelete) => {
+    e.stopPropagation(); // Evita que se seleccione la fila al hacer clic en borrar
     e.preventDefault();
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
@@ -208,7 +209,11 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
             const formattedTime = item.valid_until ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
 
             return (
-              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3 shrink-0">
+              <li
+                key={item.plate}
+                onClick={() => onSelectWhitelistPlate && onSelectWhitelistPlate(item.plate)}
+                className="cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3 shrink-0"
+              >
                 <div className="flex flex-col gap-1 w-full sm:w-auto overflow-hidden">
                   <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors truncate">{item.plate}</span>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors truncate">{item.owner_name}</span>

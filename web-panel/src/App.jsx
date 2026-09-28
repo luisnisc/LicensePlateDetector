@@ -56,6 +56,7 @@ function App() {
   const [loginError, setLoginError] = useState('');
 
   const [selectedPlate, setSelectedPlate] = useState('');
+  const [selectedWhitelistPlate, setSelectedWhitelistPlate] = useState('')
 
   const [isDarkMode, setIsDarkMode] = useState(
     () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -192,8 +193,8 @@ function App() {
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Añadir accesos</h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Gestión de matrículas y titulares</p>
             </div>
-            <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} />
-            <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} searchTerm={selectedPlate} setSearchTerm={setSelectedPlate} fetchWhitelist={fetchWhitelist} />
+            <AccessForm whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} searchPlate={selectedWhitelistPlate} setSearchPlate={setSelectedWhitelistPlate} />
+            <WhitelistTable whitelist={whitelist} API_URL={API_URL} customSwal={customSwal} searchTerm={selectedPlate} setSearchTerm={setSelectedPlate} fetchWhitelist={fetchWhitelist} onSelectWhitelistPlate={(plate) => setSelectedWhitelistPlate(plate)} />
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
