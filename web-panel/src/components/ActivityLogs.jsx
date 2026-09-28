@@ -156,10 +156,10 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
                     ease: 'outElastic(1, .6)'
                   });
                 }}
-                className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-colors ${isDenied && isAdmin
+                className={`bg-zinc-50 dark:bg-zinc-950/50 border p-3.5 rounded-xl gap-3 transition-colors ${!isAdmin ? 'hover:border-zinc-400 dark:hover:border-zinc-500/50' : ''} ${isDenied
                   ? 'cursor-grab active:cursor-grabbing border-zinc-200 dark:border-zinc-800 hover:border-red-400 dark:hover:border-red-500/50'
                   : 'cursor-pointer border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-500/50'
-                  } hover:border-zinc-400 dark:hover:border-zinc-500/50`}
+                  } `}
               >
                 <div className="flex flex-row justify-between items-center gap-4">
                   <span className="font-mono text-zinc-900 dark:text-zinc-100 text-lg tracking-widest transition-colors">{item.plate}</span>
