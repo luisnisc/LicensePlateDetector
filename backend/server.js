@@ -235,14 +235,23 @@ app.post('/api/v1/login', (req, res) => {
   }
 });
 
-const authenticateWeb = (req, res, next) => {
+const authenticateHybrid = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  if (!token) {
+    return res.status(401).json({ error: 'Token de autenticación requerido' });
+  }
+
+  if (token === API_TOKEN) {
+    req.user = { username: 'sistema_externo', role: 'admin' };
+    return next();
+  }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Sesión caducada o token inválido' });
+    if (err) {
+      return res.status(403).json({ error: 'Sesión caducada, token JWT inválido o API_TOKEN incorrecto' });
+    }
     req.user = user;
     next();
   });
@@ -406,9 +415,9 @@ function triggerRelayHardware() { }
  *         description: Permisos insuficientes (requiere rol admin).
  */
 
-app.get('/api/v1/whitelist', authenticateWeb, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
+app.get('/api/v1/whitelist', authenticateHybrid, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
-app.post('/api/v1/whitelist', authenticateWeb, requireAdmin, (req, res) => {
+app.post('/api/v1/whitelist', authenticateHybrid, requireAdmin, (req, res) => {
   const { plate, owner_name, valid_until } = req.body;
 
   if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
@@ -453,7 +462,7 @@ app.post('/api/v1/whitelist', authenticateWeb, requireAdmin, (req, res) => {
  *         description: Matrícula no encontrada.
  */
 
-app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res) => {
+app.delete('/api/v1/whitelist/:plate', authenticateHybrid, requireAdmin, (req, res) => {
   const info = deletePlateStmt.run(req.params.plate);
   if (info.changes > 0) {
     io.emit('plate_removed', { plate: req.params.plate });
@@ -491,9 +500,9 @@ app.delete('/api/v1/whitelist/:plate', authenticateWeb, requireAdmin, (req, res)
  *         description: Error interno de base de datos.
  */
 
-app.get('/api/v1/logs', authenticateWeb, (req, res) => res.status(200).json(getAllLogsStmt.all()));
+app.get('/api/v1/logs', authenticateHybrid, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
-app.delete('/api/v1/logs', authenticateWeb, requireAdmin, (req, res) => {
+app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
   try {
     const info = cleanLogsStmt.run();
     io.emit('logs_cleared');
