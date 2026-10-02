@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { animate, spring } from 'animejs';
 import axios from 'axios';
 
-export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist }) {
+export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, setSearchTerm, fetchWhitelist, onSelectWhitelistPlate }) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const tableContainerRef = useRef(null);
 
   const handleDelete = async (e, plateToDelete) => {
+    e.stopPropagation(); // Evita que se seleccione la fila al hacer clic en borrar
     e.preventDefault();
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
@@ -37,17 +40,38 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
   const handleDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    if (!isDraggingOver) setIsDraggingOver(true);
+
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+      animate(tableContainerRef.current, {
+        scale: 1.015,
+        duration: 250,
+        ease: 'outCubic'
+      });
+    }
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    setIsDraggingOver(false);
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDraggingOver(false);
+      animate(tableContainerRef.current, {
+        scale: 1,
+        duration: 200,
+        ease: 'outQuad'
+      });
+    }
   };
 
   const handleDrop = async (e) => {
     e.preventDefault();
     setIsDraggingOver(false);
+
+    animate(tableContainerRef.current, {
+      scale: [0.98, 1],
+      duration: 500,
+      ease: spring({ bounce: 0.4, mass: 1 })
+    });
 
     const droppedPlate = e.dataTransfer.getData('text/plain');
     if (!droppedPlate) return;
@@ -107,11 +131,12 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
 
   return (
     <div
+      ref={tableContainerRef}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col w-full transition-all duration-300 rounded-xl p-2 -m-2 ${isDraggingOver
-        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 scale-[1.01] shadow-lg'
+      className={`flex flex-col w-full transition-colors duration-300 rounded-xl p-2 -m-2 ${isDraggingOver
+        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-xl'
         : 'ring-0'
         }`}
     >
@@ -123,7 +148,6 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
           </span>
         </label>
         <div className="relative">
-
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <svg
               className="w-4 h-4 text-zinc-400 dark:text-zinc-500"
@@ -185,7 +209,11 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
             const formattedTime = item.valid_until ? new Date(item.valid_until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
 
             return (
-              <li key={item.plate} className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3 shrink-0">
+              <li
+                key={item.plate}
+                onClick={() => onSelectWhitelistPlate && onSelectWhitelistPlate(item.plate)}
+                className="cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/60 p-3 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group gap-3 shrink-0"
+              >
                 <div className="flex flex-col gap-1 w-full sm:w-auto overflow-hidden">
                   <span className="font-mono text-zinc-800 dark:text-zinc-200 tracking-wider font-bold transition-colors truncate">{item.plate}</span>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors truncate">{item.owner_name}</span>
