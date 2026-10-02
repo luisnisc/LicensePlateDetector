@@ -7,7 +7,7 @@ export function WhitelistTable({ whitelist, API_URL, customSwal, searchTerm, set
   const tableContainerRef = useRef(null);
 
   const handleDelete = async (e, plateToDelete) => {
-    e.stopPropagation(); // Evita que se seleccione la fila al hacer clic en borrar
+    e.stopPropagation();
     e.preventDefault();
     try {
       await axios.delete(`${API_URL}/api/v1/whitelist/${plateToDelete}`);
