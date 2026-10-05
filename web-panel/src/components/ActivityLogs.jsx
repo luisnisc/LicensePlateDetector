@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { animate } from "animejs"
+import { animate } from "animejs";
 
 export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cameraId, onSelectPlate }) {
-
   const [filter, setFilter] = useState('ALL');
-
-  if (isAdmin) {
-    console.log("que es admin CO")
-  } else {
-    console.log("que no es admin CO")
-  }
+  const [searchPlate, setSearchPlate] = useState('');
 
   const cleanUpLogsUI = async () => {
     const result = await customSwal.fire({
@@ -38,13 +32,15 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
   };
 
   const filteredLogs = logs.filter(item => {
-    if (filter === 'ALL') return true;
-
     const isAuthorized = item.status?.toLowerCase().includes('permitido') || item.status === 'OK';
 
+    if (filter === 'PERMITIDO' && !isAuthorized) return false;
+    if (filter === 'DENEGADO' && isAuthorized) return false;
 
-    if (filter === 'PERMITIDO') return isAuthorized;
-    if (filter === 'DENEGADO') return !isAuthorized;
+    if (searchPlate.trim() !== '') {
+      const matchPlate = item.plate?.toLowerCase().includes(searchPlate.toLowerCase().trim());
+      if (!matchPlate) return false;
+    }
 
     return true;
   });
@@ -73,25 +69,54 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
         </div>
       </div>
 
-      <div className="flex bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-lg mb-4 w-full sm:w-fit">
-        <button
-          onClick={() => setFilter('ALL')}
-          className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'ALL' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-        >
-          Todos
-        </button>
-        <button
-          onClick={() => setFilter('PERMITIDO')}
-          className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'PERMITIDO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-        >
-          Permitidos
-        </button>
-        <button
-          onClick={() => setFilter('DENEGADO')}
-          className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'DENEGADO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-red-600 dark:text-red-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-        >
-          Denegados
-        </button>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 w-full">
+
+        <div className="flex bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-lg w-full sm:w-auto">
+          <button
+            onClick={() => setFilter('ALL')}
+            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'ALL' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setFilter('PERMITIDO')}
+            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'PERMITIDO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            Permitidos
+          </button>
+          <button
+            onClick={() => setFilter('DENEGADO')}
+            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'DENEGADO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-red-600 dark:text-red-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            Denegados
+          </button>
+        </div>
+
+        <div className="relative w-full sm:w-48">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
+            <svg className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar..."
+            value={searchPlate}
+            onChange={(e) => setSearchPlate(e.target.value)}
+            className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-xs pl-8 pr-7 py-1.5 rounded-lg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 transition-all font-mono uppercase placeholder:normal-case placeholder:font-sans placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+          />
+          {searchPlate && (
+            <button
+              type="button"
+              onClick={() => setSearchPlate('')}
+              className="absolute inset-y-0 right-0 flex items-center pr-2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {logs.length === 0 ? (
@@ -148,7 +173,6 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
                   }, 0);
                 }}
                 onDragEnd={(e) => {
-
                   animate(e.currentTarget, {
                     opacity: 1,
                     scale: 1,
