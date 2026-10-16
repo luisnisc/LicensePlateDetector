@@ -7,15 +7,15 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
-
+const { spawn } = require('child_process');
 const path = require('path');
+
 const dbPath = path.join(__dirname, 'data', 'access_control.sqlite');
 const db = new Database(dbPath);
 
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-lpr'
-
 const API_TOKEN = process.env.LPR_API_TOKEN || 'puL04ku10jfrSfVES22gBSYGAxZHsESIizgAqw2oGZQupLys5iWJ71hH27cI3eimeg3VS1vyDf';
 
 const authenticateToken = (req, res, next) => {
@@ -26,7 +26,6 @@ const authenticateToken = (req, res, next) => {
     console.warn(`[SEGURIDAD] Intento de acceso no autorizado desde IP: ${req.ip}`);
     return res.status(401).json({ error: 'No autorizado: Token inválido o ausente' });
   }
-
   next();
 };
 
@@ -73,14 +72,8 @@ const swaggerOptions = {
       description: 'API REST para la gestión de control de acceso por matrículas (ALPR) y monitorización en tiempo real.',
     },
     servers: [
-      {
-        url: 'http://fsccv:3000',
-        description: 'Servidor Producción'
-      },
-      {
-        url: 'http://localhost:3000',
-        description: 'Servidor Local',
-      }
+      { url: 'http://fsccv:3000', description: 'Servidor Producción' },
+      { url: 'http://localhost:3000', description: 'Servidor Local' }
     ],
     components: {
       securitySchemes: {
@@ -94,7 +87,7 @@ const swaggerOptions = {
           type: 'apiKey',
           in: 'header',
           name: 'Authorization',
-          description: 'Token estático (API_TOKEN) exclusivo para el hardware/cámaras. Enviar como: Bearer <TOKEN>',
+          description: 'Token estático exclusivo para hardware. Enviar como: Bearer <TOKEN>',
         }
       }
     }
@@ -115,7 +108,6 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Cliente conectado: ${socket.id}`);
-
   socket.on('video_frame', (data) => {
     if (data && data.cam_id && data.image) {
       socket.broadcast.emit(`video_frame_${data.cam_id}`, data.image);
@@ -123,12 +115,7 @@ io.on('connection', (socket) => {
   });
 });
 
-app.use(cors({
-  origin: true,
-  methods: ['GET', 'POST', 'DELETE'],
-  credentials: true
-}));
-
+app.use(cors({ origin: true, methods: ['GET', 'POST', 'DELETE'], credentials: true }));
 app.use(express.json());
 
 db.exec(`
@@ -153,11 +140,11 @@ db.exec(`
     );
 `);
 
-// try {
-//   db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
-//   console.log("[SISTEMA] Columna 'role' añadida a los usuarios existentes.");
-// } catch (e) {
-// }
+try {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
+} catch (e) {
+  // Ignorar si ya existe
+}
 
 const checkUserStmt = db.prepare('SELECT * FROM users WHERE username = ?');
 if (!checkUserStmt.get('admin')) {
@@ -167,105 +154,49 @@ if (!checkUserStmt.get('admin')) {
 }
 
 const checkPlateStmt = db.prepare(`
-    SELECT plate, owner_name
-    FROM whitelist
-    WHERE plate = ?
-      AND (valid_until IS NULL OR datetime(valid_until) > datetime('now'))
+    SELECT plate, owner_name FROM whitelist
+    WHERE plate = ? AND (valid_until IS NULL OR datetime(valid_until) > datetime('now'))
 `);
 const insertLogStmt = db.prepare('INSERT INTO access_logs (plate, confidence, camera_id, status, timestamp) VALUES (?, ?, ?, ?, ?)');
 
 const insertPlateStmt = db.prepare(`
-    INSERT INTO whitelist (plate, owner_name, valid_until)
-    VALUES (?, ?, ?)
-    ON CONFLICT(plate) DO UPDATE SET
-        owner_name = excluded.owner_name,
-        valid_until = excluded.valid_until
+    INSERT INTO whitelist (plate, owner_name, valid_until) VALUES (?, ?, ?)
+    ON CONFLICT(plate) DO UPDATE SET owner_name = excluded.owner_name, valid_until = excluded.valid_until
 `);
 const deletePlateStmt = db.prepare('DELETE FROM whitelist WHERE plate = ?');
 const getAllPlatesStmt = db.prepare('SELECT plate, owner_name, valid_until, added_at FROM whitelist ORDER BY added_at DESC');
 const getAllLogsStmt = db.prepare('SELECT * FROM access_logs ORDER BY id DESC');
-
 const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
 const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
 const lastAccessLog = new Map();
-
-// Cooldown global para matrículas
 const COOLDOWN_MS = 40000;
+const activeCameras = {}; // Referencias para procesos Python
 
-/**
- * @openapi
- * /api/v1/login:
- *   post:
- *     summary: Inicia sesión en el panel web
- *     tags:
- *       - Auth
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *                 example: "admin"
- *               password:
- *                 type: string
- *                 example: "admin"
- *     responses:
- *       200:
- *         description: Login exitoso, devuelve el token JWT
- *       400:
- *         description: Petición mal formada (faltan credenciales)
- *       401:
- *         description: Usuario o contraseña incorrectos
- */
+
 app.post('/api/v1/login', (req, res) => {
   try {
     const { username, password } = req.body;
-
-    console.log(`[LOGIN] Intento de acceso. Usuario recibido: '${username}'`);
-
     if (!username || password === undefined || password === null) {
-      console.log('[LOGIN] Rechazado: Falta usuario o contraseña en la petición.');
       return res.status(400).json({ error: 'El usuario y contraseña son obligatorios' });
     }
 
     const user = checkUserStmt.get(username);
-
-    if (!user) {
-      console.log('[LOGIN] Rechazado: El usuario no existe en la base de datos.');
+    if (!user || !user.password) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
-    if (!user.password) {
-      console.log('[LOGIN] Rechazado: El usuario existe pero su hash de contraseña está vacío.');
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-    }
-
-    const isValid = bcrypt.compareSync(password, user.password);
-
-    if (isValid) {
-      console.log(`[LOGIN] Acceso concedido a '${user.username}' (Rol: ${user.role}). Generando JWT.`);
-
+    if (bcrypt.compareSync(password, user.password)) {
       const tokenExpiresIn = user.role === 'admin' ? '8h' : '3650d';
-
       const token = jwt.sign(
         { id: user.id, username: user.username, role: user.role },
         JWT_SECRET,
         { expiresIn: tokenExpiresIn }
       );
-
       return res.json({ token, role: user.role });
     } else {
-      console.log('[LOGIN] Rechazado: La contraseña no coincide.');
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
-
   } catch (error) {
     console.error('[LOGIN FATAL ERROR]', error.message);
     return res.status(500).json({ error: 'Error interno del servidor en el login' });
@@ -273,49 +204,16 @@ app.post('/api/v1/login', (req, res) => {
 });
 
 
-/**
- * @openapi
- * /api/v1/access:
- *   post:
- *     summary: Procesa una detección de matrícula enviada por una cámara LPR
- *     tags:
- *       - Access Control (Hardware)
- *     security:
- *       - apiTokenAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - plate
- *             properties:
- *               plate:
- *                 type: string
- *                 example: "1234ABC"
- *               confidence:
- *                 type: number
- *                 example: 0.95
- *               camera_id:
- *                 type: string
- *                 example: "CAM_ENTRADA_01"
- *     responses:
- *       200:
- *         description: Acceso permitido.
- *       401:
- *         description: Token de API inválido o ausente.
- *       403:
- *         description: Acceso denegado (matrícula no en whitelist o caducada).
- *       429:
- *         description: Solicitud ignorada por Cooldown activo.
- */
-
 app.post('/api/v1/access', authenticateToken, (req, res) => {
   const { plate, confidence, camera_id } = req.body;
 
   if (!plate) return res.status(400).json({ error: 'Matrícula no proporcionada' });
   if (!camera_id) return res.status(400).json({ error: 'Origen (camera_id) no proporcionado' });
+
+  if (!/\d/.test(plate)) {
+    console.log(`[ALERTA OCR] Descartada lectura sin números: ${plate}`);
+    return res.status(400).json({ error: 'Lectura inválida: carece de números' });
+  }
 
   const now = Date.now();
   const debounceKey = plate;
@@ -337,132 +235,44 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
   }
 
   const info = insertLogStmt.run(plate, confidence, camera_id, status, timestamp);
-
-  const newLog = {
-    id: info.lastInsertRowid,
-    plate,
-    confidence,
-    camera_id,
-    status,
-    timestamp
-  };
+  const newLog = { id: info.lastInsertRowid, plate, confidence, camera_id, status, timestamp };
 
   io.emit('new_log', newLog);
-
   console.log(`[ACCESO ${status}] Matrícula: ${plate} en ${camera_id} ${validRecord ? `(${validRecord.owner_name})` : ''}`);
+
   return res.status(validRecord ? 200 : 403).json({ status, plate, camera_id });
 });
 
 function triggerRelayHardware(cameraId) {
   if (cameraId === 'BARRERA_ACCESO_01') {
     console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
-  }
-  else if (cameraId === 'BARRERA_SALIDA_01') {
+  } else if (cameraId === 'BARRERA_SALIDA_01') {
     console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
-  }
-  else {
+  } else {
     console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
   }
 }
 
-/**
- * @openapi
- * /api/v1/whitelist:
- *   get:
- *     summary: Obtiene la lista completa de matrículas autorizadas
- *     tags:
- *       - Whitelist (Web Panel)
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Lista devuelta correctamente.
- *       401:
- *         description: Token JWT inválido o ausente.
- *
- *   post:
- *     summary: Añade o actualiza una matrícula en la whitelist (Solo Admins)
- *     tags:
- *       - Whitelist (Web Panel)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - plate
- *               - owner_name
- *             properties:
- *               plate:
- *                 type: string
- *                 example: "5678DEF"
- *               owner_name:
- *                 type: string
- *                 example: "Juan Pérez"
- *               valid_until:
- *                 type: string
- *                 format: date-time
- *                 nullable: true
- *                 description: "Fecha de caducidad opcional. Si es null, el acceso es permanente."
- *                 example: "2026-12-31T23:59:59.000Z"
- *     responses:
- *       201:
- *         description: Matrícula guardada correctamente.
- *       400:
- *         description: Datos de entrada no válidos.
- *       403:
- *         description: Permisos insuficientes (requiere rol admin).
- */
 
 app.get('/api/v1/whitelist', authenticateHybrid, (req, res) => res.status(200).json(getAllPlatesStmt.all()));
 
 app.post('/api/v1/whitelist', authenticateHybrid, requireAdmin, (req, res) => {
   const { plate, owner_name, valid_until } = req.body;
 
-  if (!plate || !/^[A-Z0-9]{4,9}$/.test(plate)) {
-    return res.status(400).json({ error: 'Formato de matrícula inválido.' });
+  if (!plate || !/^[A-Z0-9]{4,10}$/.test(plate) || !/\d/.test(plate)) {
+    return res.status(400).json({ error: 'Formato inválido. Debe ser alfanumérico y contener números.' });
   }
   if (!owner_name || owner_name.trim().length === 0) {
     return res.status(400).json({ error: 'El nombre del titular es obligatorio.' });
   }
 
   const expiryDate = valid_until ? new Date(valid_until).toISOString() : null;
-
   insertPlateStmt.run(plate, owner_name.trim(), expiryDate);
-
   const newPlateRecord = { plate, owner_name: owner_name.trim(), valid_until: expiryDate };
 
   io.emit('plate_added', newPlateRecord);
   res.status(201).json({ message: 'Matrícula guardada/actualizada', record: newPlateRecord });
 });
-
-/**
- * @openapi
- * /api/v1/whitelist/{plate}:
- *   delete:
- *     summary: Elimina una matrícula de la whitelist (Solo Admins)
- *     tags:
- *       - Whitelist (Web Panel)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: plate
- *         required: true
- *         schema:
- *           type: string
- *         description: Matrícula a eliminar
- *     responses:
- *       200:
- *         description: Matrícula eliminada correctamente.
- *       403:
- *         description: Permisos insuficientes (requiere rol admin).
- *       404:
- *         description: Matrícula no encontrada.
- */
 
 app.delete('/api/v1/whitelist/:plate', authenticateHybrid, requireAdmin, (req, res) => {
   const info = deletePlateStmt.run(req.params.plate);
@@ -474,61 +284,28 @@ app.delete('/api/v1/whitelist/:plate', authenticateHybrid, requireAdmin, (req, r
   }
 });
 
-/**
- * @openapi
- * /api/v1/logs:
- *   get:
- *     summary: Obtiene el historial de accesos
- *     tags:
- *       - Logs (Web Panel)
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Historial de registros devuelto.
- *
- *   delete:
- *     summary: Purga todo el historial de accesos (Solo Admins)
- *     tags:
- *       - Logs (Web Panel)
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Historial eliminado correctamente.
- *       403:
- *         description: Permisos insuficientes (requiere rol admin).
- *       500:
- *         description: Error interno de base de datos.
- */
-
 app.get('/api/v1/logs', authenticateHybrid, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
 app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
   try {
     const { camera_id } = req.query;
     let info;
-
     if (camera_id) {
       info = cleanLogsByCameraStmt.run(camera_id);
       io.emit('logs_cleared', { camera_id });
-      console.log(`[LOGS] Registros de ${camera_id} eliminados por admin.`);
     } else {
       info = cleanAllLogsStmt.run();
       io.emit('logs_cleared', { camera_id: null });
-      console.log('[LOGS] Todos los registros han sido eliminados.');
     }
-
-    return res.status(200).json({
-      message: 'Logs eliminados correctamente',
-      rowsDeleted: info.changes
-    });
+    return res.status(200).json({ message: 'Logs eliminados', rowsDeleted: info.changes });
   } catch (error) {
-    console.error('[DATABASE ERROR]', error);
     return res.status(500).json({ error: 'Error interno al borrar logs' });
   }
 });
 
+
+
+
 server.listen(3000, () => {
-  console.log('Backend LPR activo en puerto 3000 con SQLite y WebSockets');
+  console.log('Backend LPR activo en puerto 3000 con SQLite, Control de Procesos y WebSockets');
 });
