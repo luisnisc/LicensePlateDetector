@@ -244,12 +244,16 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 });
 
 function triggerRelayHardware(cameraId) {
-  if (cameraId === 'BARRERA_ACCESO_01') {
-    console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
-  } else if (cameraId === 'BARRERA_SALIDA_01') {
-    console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
-  } else {
-    console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
+  switch (cameraId) {
+    case "BARRERA_ACCESO_01":
+      console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
+      break;
+    case "BARRERA_SALIDA_01":
+      console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
+      break;
+    default:
+      console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
+      break;
   }
 }
 
