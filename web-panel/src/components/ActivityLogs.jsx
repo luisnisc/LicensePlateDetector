@@ -187,6 +187,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
               >
                 <div className="flex flex-row justify-between items-center gap-4">
                   <span className="font-mono text-zinc-900 dark:text-zinc-100 text-lg tracking-widest transition-colors">{item.plate}</span>
+
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">
                     OCR: {item.confidence ? (item.confidence * 100).toFixed(0) : '--'}%
                   </span>

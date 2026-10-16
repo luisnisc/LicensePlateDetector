@@ -30,6 +30,37 @@ const authenticateToken = (req, res, next) => {
   next();
 };
 
+const authenticateHybrid = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token de autenticación requerido' });
+  }
+
+  if (token === API_TOKEN) {
+    req.user = { username: 'sistema_externo', role: 'admin' };
+    return next();
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Sesión caducada, token JWT inválido o API_TOKEN incorrecto' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+const requireAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    console.warn(`[SEGURIDAD] Usuario '${req.user.username}' intentó una acción de administrador.`);
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador.' });
+  }
+}
+
 const app = express();
 const server = createServer(app);
 
@@ -100,7 +131,6 @@ app.use(cors({
 
 app.use(express.json());
 
-
 db.exec(`
     CREATE TABLE IF NOT EXISTS whitelist (
         plate TEXT PRIMARY KEY,
@@ -122,11 +152,13 @@ db.exec(`
         password TEXT
     );
 `);
-try {
-  db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
-  console.log("[SISTEMA] Columna 'role' añadida a los usuarios existentes.");
-} catch (e) {
-}
+
+// try {
+//   db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
+//   console.log("[SISTEMA] Columna 'role' añadida a los usuarios existentes.");
+// } catch (e) {
+// }
+
 const checkUserStmt = db.prepare('SELECT * FROM users WHERE username = ?');
 if (!checkUserStmt.get('admin')) {
   const hash = bcrypt.hashSync('Filip@2807', 10);
@@ -157,8 +189,9 @@ const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
 const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
 const lastAccessLog = new Map();
-const COOLDOWN_MS = 10000;
 
+// Cooldown global para matrículas
+const COOLDOWN_MS = 40000;
 
 /**
  * @openapi
@@ -239,37 +272,6 @@ app.post('/api/v1/login', (req, res) => {
   }
 });
 
-const authenticateHybrid = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Token de autenticación requerido' });
-  }
-
-  if (token === API_TOKEN) {
-    req.user = { username: 'sistema_externo', role: 'admin' };
-    return next();
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Sesión caducada, token JWT inválido o API_TOKEN incorrecto' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
-    next();
-  } else {
-    console.warn(`[SEGURIDAD] Usuario '${req.user.username}' intentó una acción de administrador.`);
-    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador.' });
-  }
-}
-
 
 /**
  * @openapi
@@ -316,20 +318,21 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
   if (!camera_id) return res.status(400).json({ error: 'Origen (camera_id) no proporcionado' });
 
   const now = Date.now();
-  const debounceKey = `${plate}_${camera_id}`;
+  const debounceKey = plate;
   const lastTime = lastAccessLog.get(debounceKey) || 0;
 
   if (now - lastTime < COOLDOWN_MS) {
-    console.log(`[DEBOUNCE] Matrícula ${plate} ignorada en ${camera_id} (Cooldown).`);
-    return res.status(429).json({ status: 'IGNORED', message: 'Cooldown activo para esta cámara' });
+    console.log(`[DEBOUNCE GLOBAL] Matrícula ${plate} ignorada en ${camera_id} (Cooldown cruzado activo).`);
+    return res.status(429).json({ status: 'IGNORED', message: 'Cooldown global activo para esta matrícula' });
   }
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
   const timestamp = new Date().toISOString();
 
+  lastAccessLog.set(debounceKey, now);
+
   if (validRecord) {
-    lastAccessLog.set(debounceKey, now);
     triggerRelayHardware(camera_id);
   }
 
@@ -351,20 +354,16 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 });
 
 function triggerRelayHardware(cameraId) {
-  if (cameraId === 'CAM_ENTRADA_01') {
+  if (cameraId === 'BARRERA_ACCESO_01') {
     console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
-
   }
-  else if (cameraId === 'CAM_SALIDA_01') {
+  else if (cameraId === 'BARRERA_SALIDA_01') {
     console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
-
   }
   else {
     console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
   }
 }
-
-function triggerRelayHardware() { }
 
 /**
  * @openapi
@@ -505,20 +504,18 @@ app.delete('/api/v1/whitelist/:plate', authenticateHybrid, requireAdmin, (req, r
 
 app.get('/api/v1/logs', authenticateHybrid, (req, res) => res.status(200).json(getAllLogsStmt.all()));
 
-
 app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
-
   try {
-    const { camera_id } = req.query; // Leemos la query: /api/v1/logs?camera_id=CAM_ENTRADA_01
+    const { camera_id } = req.query;
     let info;
 
     if (camera_id) {
       info = cleanLogsByCameraStmt.run(camera_id);
-      io.emit('logs_cleared', { camera_id }); // Notificamos qué cámara se ha limpiado
+      io.emit('logs_cleared', { camera_id });
       console.log(`[LOGS] Registros de ${camera_id} eliminados por admin.`);
     } else {
       info = cleanAllLogsStmt.run();
-      io.emit('logs_cleared', { camera_id: null }); // Limpieza global
+      io.emit('logs_cleared', { camera_id: null });
       console.log('[LOGS] Todos los registros han sido eliminados.');
     }
 

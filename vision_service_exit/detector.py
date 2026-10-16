@@ -23,27 +23,27 @@ from paddleocr import PaddleOCR
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
     CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_SALIDA_01")
-    VIDEO_SOURCE = 'rtsp://admin:Filip2807@10.255.40.116:554/Streaming/Channels/101'
+    VIDEO_SOURCE = "rtsp://admin:Filip2807@10.255.40.116:554/Streaming/Channels/101"
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
     OCR_MIN_PROB: float = 0.70
 
-    BLUR_THRESHOLD: float = 60.0
+    BLUR_THRESHOLD: float = 35.0
     MIN_PLATE_WIDTH: int = 20
 
-    REQUIRED_MATCHES: int = 4
-    MAX_ATTEMPTS: int = 6
+    REQUIRED_MATCHES: int = 2
+    MAX_ATTEMPTS: int = 4
     COOLDOWN_SECONDS: int = 5
-    DENIED_COOLDOWN_SECONDS: int = 120
+    DENIED_COOLDOWN_SECONDS: int = 60
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
-    #ROI_BOX = (0, 250, 2000, 1200)
+    # ROI_BOX = (0, 250, 2000, 1200)
     ROI_BOX = None
 
-    STABILITY_FRAMES: int = 5
-    STABILITY_MOVEMENT_PX: int = 15
+    STABILITY_FRAMES: int = 2
+    STABILITY_MOVEMENT_PX: int = 80
 
     RECONNECT_ATTEMPTS: int = 10
     RECONNECT_DELAY: float = 2.0

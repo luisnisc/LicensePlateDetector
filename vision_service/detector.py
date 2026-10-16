@@ -23,17 +23,17 @@ from paddleocr import PaddleOCR
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
     CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_ACCESO_01")
-    VIDEO_SOURCE = 'rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101'
+    VIDEO_SOURCE = "rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101"
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
     OCR_MIN_PROB: float = 0.70
 
-    BLUR_THRESHOLD: float = 60.0
+    BLUR_THRESHOLD: float = 35.0
     MIN_PLATE_WIDTH: int = 20
 
-    REQUIRED_MATCHES: int = 4
-    MAX_ATTEMPTS: int = 6
+    REQUIRED_MATCHES: int = 2
+    MAX_ATTEMPTS: int = 4
     COOLDOWN_SECONDS: int = 5
     DENIED_COOLDOWN_SECONDS: int = 60
 
@@ -43,9 +43,8 @@ class Config:
 
     # ROI_BOX = None
 
-
-    STABILITY_FRAMES: int = 5
-    STABILITY_MOVEMENT_PX: int = 15
+    STABILITY_FRAMES: int = 2
+    STABILITY_MOVEMENT_PX: int = 80
 
     RECONNECT_ATTEMPTS: int = 10
     RECONNECT_DELAY: float = 2.0
@@ -291,19 +290,19 @@ class ALPRSystem:
         return variance < Config.BLUR_THRESHOLD, variance
 
     def is_plausible_plate(self, text):
-            if not (4 <= len(text) <= 10):
-                return False
+        if not (4 <= len(text) <= 10):
+            return False
 
-            if len(set(text)) == 1:
-                return False
+        if len(set(text)) == 1:
+            return False
 
-            if text.isalpha():
-                return False
+        if text.isalpha():
+            return False
 
-            if text.isdigit():
-                return False
+        if text.isdigit():
+            return False
 
-            return True
+        return True
 
     def _point_in_roi(self, x, y):
         if not Config.ROI_BOX:
