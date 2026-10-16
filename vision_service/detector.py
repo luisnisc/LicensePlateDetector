@@ -1,4 +1,5 @@
 import os
+
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 import cv2
 import re
@@ -21,8 +22,7 @@ from paddleocr import PaddleOCR
 @dataclass
 class Config:
     BACKEND_URL: str = "http://localhost:3000/api/v1/access"
-    CAMERA_ID: str = "BARRERA_ACCESO_01"
-    # VIDEO_SOURCE = 0
+    CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_ACCESO_01")
     VIDEO_SOURCE = 'rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101'
 
     CONF_VEHICLE: float = 0.50
@@ -40,7 +40,9 @@ class Config:
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
     ROI_BOX = (260, 250, 2000, 1200)
+
     # ROI_BOX = None
+
 
     STABILITY_FRAMES: int = 5
     STABILITY_MOVEMENT_PX: int = 15
@@ -91,7 +93,9 @@ class PlateValidator:
             current_time = time.time()
 
             if plate_text in self.recent_processed:
-                if (current_time - self.recent_processed[plate_text]) < self.RECENT_EXPIRY:
+                if (
+                    current_time - self.recent_processed[plate_text]
+                ) < self.RECENT_EXPIRY:
                     return None
                 else:
                     del self.recent_processed[plate_text]
@@ -166,7 +170,9 @@ class PlateValidator:
     def _is_recently_denied_internal(self, plate_text):
         current_time = time.time()
         if plate_text in self.denied_plates:
-            if (current_time - self.denied_plates[plate_text]) < Config.DENIED_COOLDOWN_SECONDS:
+            if (
+                current_time - self.denied_plates[plate_text]
+            ) < Config.DENIED_COOLDOWN_SECONDS:
                 return True
             else:
                 del self.denied_plates[plate_text]
@@ -186,6 +192,7 @@ class PlateValidator:
     def get_locked_plate(self):
         with self.mutex:
             return self.locked_plate
+
 
 class RTSPCapture:
     def __init__(self, src):
@@ -244,6 +251,8 @@ class RTSPCapture:
         self.running = False
         self.thread.join(timeout=1.0)
         self.cap.release()
+
+
 class ALPRSystem:
     def __init__(self):
         print("[SISTEMA] Inicializando tensores y modelos en GPU...")
@@ -587,12 +596,15 @@ class ALPRSystem:
             )
             if ret_enc:
                 if sio.connected:
-                    sio.emit("video_frame", encoded_image.tobytes())
-                    print("[DEBUG] ¡Frame enviado por WebSocket!", end="\r")
+                    sio.emit(
+                        "video_frame",
+                        {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
+                    )
+                    print(f"[DEBUG] ¡Frame enviado ({Config.CAMERA_ID})!", end="\r")
 
             cv2.imshow("Sistema ALPR - Control de Acceso", frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
             time.sleep(0.03)

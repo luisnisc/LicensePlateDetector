@@ -11,7 +11,13 @@ export function useLprData() {
 
   useEffect(() => {
     socket.on('new_log', (newLog) => setLogs(prev => [newLog, ...prev]));
-    socket.on('logs_cleared', () => setLogs([]));
+    socket.on('logs_cleared', (data) => {
+      if (data && data.camera_id) {
+        setLogs(prev => prev.filter(log => log.camera_id !== data.camera_id));
+      } else {
+        setLogs([]);
+      }
+    });
     socket.on('plate_added', (newPlate) => {
       setWhitelist(prev => [newPlate, ...prev.filter(item => item.plate !== newPlate.plate)]);
     });
@@ -30,7 +36,7 @@ export function useLprData() {
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('jwt_token');
-      if (!token) return; // Si no hay token, no intenta cargar datos
+      if (!token) return; 
 
       const config = {
         headers: { Authorization: `Bearer ${token}` }

@@ -41,8 +41,9 @@ export function CameraStream({ isAdmin, titleCam, cameraId }) {
       imgRef.current.src = url;
     };
 
-    const channelName = 'video_frame';
+    const channelName = `video_frame_${cameraId}`;
     socket.on(channelName, handleFrame);
+
     return () => {
       socket.off(channelName, handleFrame);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
