@@ -7,7 +7,6 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
-const { spawn } = require('child_process');
 const path = require('path');
 
 const dbPath = path.join(__dirname, 'data', 'access_control.sqlite');
@@ -170,8 +169,7 @@ const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
 const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
 const lastAccessLog = new Map();
-const COOLDOWN_MS = 40000;
-const activeCameras = {}; // Referencias para procesos Python
+const COOLDOWN_MS = 600000;
 
 
 app.post('/api/v1/login', (req, res) => {
@@ -244,16 +242,12 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 });
 
 function triggerRelayHardware(cameraId) {
-  switch (cameraId) {
-    case "BARRERA_ACCESO_01":
-      console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
-      break;
-    case "BARRERA_SALIDA_01":
-      console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
-      break;
-    default:
-      console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
-      break;
+  if (cameraId === 'BARRERA_ACCESO_01') {
+    console.log('[HARDWARE] 🟢 Abriendo barrera de ENTRADA');
+  } else if (cameraId === 'BARRERA_SALIDA_01') {
+    console.log('[HARDWARE] 🔴 Abriendo barrera de SALIDA');
+  } else {
+    console.warn(`[HARDWARE] ⚠️ Origen desconocido: ${cameraId}. No se accionó ningún relé.`);
   }
 }
 
@@ -307,9 +301,6 @@ app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
   }
 });
 
-
-
-
 server.listen(3000, () => {
-  console.log('Backend LPR activo en puerto 3000 con SQLite, Control de Procesos y WebSockets');
+  console.log('Backend LPR activo en puerto 3000 con SQLite y WebSockets');
 });
