@@ -219,7 +219,7 @@ function App() {
 
               <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 sm:p-8 flex flex-col gap-6">
                 <CameraStream titleCam='Cámara de Salida' cameraId='BARRERA_SALIDA_01' />
-                <ActivityLogs logs={exitLogs} API_URL={API_URL} customSwal={customSwal} titleLog="Registro de Salidas" cameraId="BARRERA_SALIDA_01" isAdmin={isAdmin} />
+                <ActivityLogs logs={exitLogs} API_URL={API_URL} customSwal={customSwal} isAdmin={isAdmin} onSelectPlate={(plate) => setSelectedPlate(plate)} />
                 <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
                   <StatsChart logs={exitLogs} isDarkMode={isDarkMode} />
                 </div>
