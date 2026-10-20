@@ -219,13 +219,14 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 
   if (now - lastTime < COOLDOWN_MS) {
     console.log(`[DEBOUNCE GLOBAL] Matrícula ${plate} ignorada en ${camera_id} (Cooldown cruzado activo).`);
-    return res.status(429).json({ status: 'IGNORED', message: `Cooldown global activo para esta matrícula a ${now}` });
+    return res.status(429).json({ status: 'IGNORED', message: `Cooldown global activo para esta matrícula a ${timestamp}` });
 
   }
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
-  const timestamp = new Date().toISOString();
+  const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+  const timestamp = (new Date(Date.now() - tzOffset)).toISOString().slice(0, -1);
 
   lastAccessLog.set(debounceKey, now);
 
@@ -237,7 +238,7 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
   const newLog = { id: info.lastInsertRowid, plate, confidence, camera_id, status, timestamp };
 
   io.emit('new_log', newLog);
-  console.log(`[ACCESO ${status}] Matrícula: ${plate} en ${camera_id} ${validRecord ? `(${validRecord.owner_name})` : ''} a ${now}`);
+  console.log(`[ACCESO ${status}] Matrícula: ${plate} en ${camera_id} ${validRecord ? `(${validRecord.owner_name})` : ''} a ${timestamp}`);
 
   return res.status(validRecord ? 200 : 403).json({ status, plate, camera_id });
 });
