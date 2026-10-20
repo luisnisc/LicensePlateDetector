@@ -216,6 +216,8 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
   const now = Date.now();
   const debounceKey = plate;
   const lastTime = lastAccessLog.get(debounceKey) || 0;
+  const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+  const timestamp = (new Date(Date.now() - tzOffset)).toISOString().slice(0, -1);
 
   if (now - lastTime < COOLDOWN_MS) {
     console.log(`[DEBOUNCE GLOBAL] Matrícula ${plate} ignorada en ${camera_id} (Cooldown cruzado activo).`);
@@ -225,8 +227,7 @@ app.post('/api/v1/access', authenticateToken, (req, res) => {
 
   const validRecord = checkPlateStmt.get(plate);
   const status = validRecord ? 'PERMITIDO' : 'DENEGADO';
-  const tzOffset = (new Date()).getTimezoneOffset() * 60000;
-  const timestamp = (new Date(Date.now() - tzOffset)).toISOString().slice(0, -1);
+
 
   lastAccessLog.set(debounceKey, now);
 
