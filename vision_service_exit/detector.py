@@ -1,6 +1,8 @@
 import os
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import cv2
 import re
 import time
@@ -18,12 +20,25 @@ from dataclasses import dataclass
 from ultralytics import YOLO
 from paddleocr import PaddleOCR
 
+load_dotenv()
+
+
+def parse_source(src_str):
+    if src_str.isdigit():
+        return int(src_str)
+    return src_str
+
 
 @dataclass
 class Config:
-    BACKEND_URL: str = "http://localhost:3000/api/v1/access"
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:3000/api/v1/access")
     CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_SALIDA_01")
-    VIDEO_SOURCE = "rtsp://admin:Filip2807@10.255.40.116:554/Streaming/Channels/101"
+    VIDEO_SOURCE = parse_source(
+        os.getenv(
+            "VIDEO_SOURCE",
+            "rtsp://admin:Filip2807@10.255.40.116:554/Streaming/Channels/101",
+        )
+    )
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
@@ -48,26 +63,32 @@ class Config:
     RECONNECT_ATTEMPTS: int = 10
     RECONNECT_DELAY: float = 2.0
 
-    SOCKET_SERVER_URL: str = "http://localhost:3000"
+    SOCKET_SERVER_URL: str = os.getenv("SOCKET_SERVER_URL", "http://localhost:3000")
 
 
 logging.getLogger("ppocr").setLevel(logging.ERROR)
 
-load_dotenv()
-
 API_TOKEN = os.getenv("LPR_API_TOKEN")
 
-sio = socketio.Client()
+sio = socketio.Client(
+    reconnection=True,
+    reconnection_attempts=0,
+    reconnection_delay=2,
+)
 
 
 @sio.event
 def connect():
-    print("[STREAM] Conectado al servidor de WebSockets de Node.js")
+    print(
+        f"[STREAM - {Config.CAMERA_ID}] Conectado al servidor de WebSockets de Node.js"
+    )
 
 
 @sio.event
 def disconnect():
-    print("[STREAM] Desconectado del servidor de WebSockets. Reintentando...")
+    print(
+        f"[STREAM - {Config.CAMERA_ID}] Desconectado del servidor de WebSockets. Reintentando..."
+    )
 
 
 class PlateValidator:
@@ -210,9 +231,11 @@ class RTSPCapture:
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
-        print("[STREAM] Esperando el primer fotograma de la cámara...")
+        print(
+            f"[STREAM - {Config.CAMERA_ID}] Esperando el primer fotograma de la cámara..."
+        )
         start_time = time.time()
-        while self.frame is None and (time.time() - start_time) < 5.0:
+        while self.frame is None and (time.time() - start_time) < 10.0:
             time.sleep(0.1)
 
     def _update(self):
@@ -225,16 +248,16 @@ class RTSPCapture:
                     else:
                         self.cap.open(self.src, cv2.CAP_FFMPEG)
                         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                except:
+                except Exception:
                     pass
                 continue
 
             ret, frame = self.cap.read()
-            if ret:
+            if ret and frame is not None:
                 with self.lock:
                     self.frame = frame
             else:
-                time.sleep(0.1)
+                time.sleep(0.05)
 
     def read(self):
         with self.lock:
@@ -253,7 +276,9 @@ class RTSPCapture:
 
 class ALPRSystem:
     def __init__(self):
-        print("[SISTEMA] Inicializando tensores y modelos en GPU...")
+        print(
+            f"[SISTEMA - {Config.CAMERA_ID}] Inicializando tensores y modelos en GPU..."
+        )
         self.vehicle_model = YOLO("yolov8n.pt")
         self.plate_model = YOLO("license_plate_detector.pt")
         self.reader = PaddleOCR(
@@ -267,6 +292,7 @@ class ALPRSystem:
 
         self.last_centroid = None
         self.stable_count = 0
+        self._last_stream_ts = 0.0
 
         self.session = requests.Session()
         retries = Retry(
@@ -278,7 +304,7 @@ class ALPRSystem:
         self._warmup()
 
     def _warmup(self):
-        print("[SISTEMA] Calentando modelos...")
+        print(f"[SISTEMA - {Config.CAMERA_ID}] Calentando modelos...")
         dummy = np.zeros((640, 640, 3), dtype=np.uint8)
         self.vehicle_model(dummy, verbose=False)
         self.plate_model(dummy, verbose=False)
@@ -488,13 +514,17 @@ class ALPRSystem:
         return RTSPCapture(Config.VIDEO_SOURCE)
 
     def start(self):
-        print("[SISTEMA] Iniciando pipeline Productor-Consumidor...")
+        print(
+            f"[SISTEMA - {Config.CAMERA_ID}] Iniciando pipeline Productor-Consumidor..."
+        )
         threading.Thread(target=self.process_pipeline, daemon=True).start()
 
         try:
-            sio.connect(Config.SOCKET_SERVER_URL)
+            sio.connect(Config.SOCKET_SERVER_URL, transports=["websocket"])
         except Exception as e:
-            print(f"[ERROR STREAM] No se pudo conectar al WebSocket de Node.js: {e}")
+            print(
+                f"[ERROR STREAM - {Config.CAMERA_ID}] No se pudo conectar al WebSocket de Node.js: {e}"
+            )
 
         cap = self._open_capture()
         reconnect_attempts = 0
@@ -509,7 +539,10 @@ class ALPRSystem:
                 continue
 
             ret, frame = cap.read()
-            if not ret:
+            if not ret or frame is None:
+                if cap.isOpened():
+                    time.sleep(0.05)
+                    continue
                 reconnect_attempts += 1
                 if reconnect_attempts > Config.RECONNECT_ATTEMPTS:
                     break
@@ -520,7 +553,6 @@ class ALPRSystem:
 
             reconnect_attempts = 0
 
-            # Optimización de cola
             if self.frame_queue.full():
                 try:
                     self.frame_queue.get_nowait()
@@ -554,7 +586,7 @@ class ALPRSystem:
                     cv2.putText(
                         frame,
                         item["text"],
-                        (x1, y1 - 10),
+                        (x1, max(20, y1 - 10)),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7,
                         color,
@@ -578,19 +610,29 @@ class ALPRSystem:
                 2,
             )
 
-            small_frame = cv2.resize(frame, (640, 360))
-            ret_enc, encoded_image = cv2.imencode(
-                ".jpg", small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-            )
-            if ret_enc:
-                if sio.connected:
+            now_stream = time.time()
+            if sio.connected and (now_stream - self._last_stream_ts) >= 0.065:
+                self._last_stream_ts = now_stream
+                h, w = frame.shape[:2]
+                target_w = 1280
+                if w > target_w:
+                    scale = target_w / float(w)
+                    stream_frame = cv2.resize(
+                        frame, (target_w, int(h * scale)), interpolation=cv2.INTER_AREA
+                    )
+                else:
+                    stream_frame = frame
+
+                ret_enc, encoded_image = cv2.imencode(
+                    ".jpg", stream_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                )
+                if ret_enc:
                     sio.emit(
                         "video_frame",
                         {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
                     )
-                    print(f"[DEBUG] ¡Frame enviado ({Config.CAMERA_ID})!", end="\r")
 
-            cv2.imshow("Sistema ALPR - Control de Acceso", frame)
+            cv2.imshow(f"Sistema ALPR - {Config.CAMERA_ID}", frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

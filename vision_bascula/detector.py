@@ -213,11 +213,7 @@ class CameraCapture:
         self.running = True
 
         if isinstance(self.src, int) or str(self.src).isdigit():
-            self.cap = (
-                cv2.VideoCapture(int(self.src), cv2.CAP_DSHOW)
-                if os.name == "nt"
-                else cv2.VideoCapture(int(self.src))
-            )
+            self.cap = cv2.VideoCapture(int(self.src))
         else:
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
             self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
@@ -229,7 +225,7 @@ class CameraCapture:
 
         print(f"[STREAM - {Config.CAMERA_ID}] Esperando primer fotograma...")
         start_time = time.time()
-        while self.frame is None and (time.time() - start_time) < 5.0:
+        while self.frame is None and (time.time() - start_time) < 10.0:
             time.sleep(0.1)
 
     def _update(self):
@@ -247,7 +243,7 @@ class CameraCapture:
                 continue
 
             ret, frame = self.cap.read()
-            if ret:
+            if ret and frame is not None:
                 with self.lock:
                     self.frame = frame
             else:
@@ -290,6 +286,7 @@ class ALPRLogisticsSystem:
         self.current_detections = []
         self.detection_lock = threading.Lock()
         self.frame_queue = queue.Queue(maxsize=3)
+        self._last_stream_ts = 0.0
 
         self.session = requests.Session()
         retries = Retry(
@@ -507,7 +504,10 @@ class ALPRLogisticsSystem:
                 continue
 
             ret, frame = cap.read()
-            if not ret:
+            if not ret or frame is None:
+                if cap.isOpened():
+                    time.sleep(0.05)
+                    continue
                 reconnect_attempts += 1
                 if reconnect_attempts > Config.RECONNECT_ATTEMPTS:
                     break
@@ -565,15 +565,27 @@ class ALPRLogisticsSystem:
                 2,
             )
 
-            small_frame = cv2.resize(frame, (640, 360))
-            ret_enc, encoded_image = cv2.imencode(
-                ".jpg", small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-            )
-            if ret_enc and sio.connected:
-                sio.emit(
-                    "video_frame",
-                    {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
+            now_stream = time.time()
+            if sio.connected and (now_stream - self._last_stream_ts) >= 0.065:
+                self._last_stream_ts = now_stream
+                h, w = frame.shape[:2]
+                target_w = 1280
+                if w > target_w:
+                    scale = target_w / float(w)
+                    stream_frame = cv2.resize(
+                        frame, (target_w, int(h * scale)), interpolation=cv2.INTER_AREA
+                    )
+                else:
+                    stream_frame = frame
+
+                ret_enc, encoded_image = cv2.imencode(
+                    ".jpg", stream_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
                 )
+                if ret_enc:
+                    sio.emit(
+                        "video_frame",
+                        {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
+                    )
 
             cv2.imshow(f"ALPR Registro - {Config.CAMERA_ID}", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
