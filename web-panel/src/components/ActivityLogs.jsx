@@ -50,7 +50,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">Actividad</h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registro de accesos'}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registros de accesos: '} {filteredLogs.length}  </p>
         </div>
         <div className="flex items-center gap-3">
           {isAdmin && (
@@ -74,19 +74,19 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
         <div className="flex bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-lg w-full sm:w-auto">
           <button
             onClick={() => setFilter('ALL')}
-            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'ALL' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            className={`cursor-pointer flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'ALL' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
           >
             Todos
           </button>
           <button
             onClick={() => setFilter('PERMITIDO')}
-            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'PERMITIDO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            className={`cursor-pointer flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'PERMITIDO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
           >
             Permitidos
           </button>
           <button
             onClick={() => setFilter('DENEGADO')}
-            className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'DENEGADO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-red-600 dark:text-red-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            className={`cursor-pointer flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'DENEGADO' ? 'bg-white dark:bg-zinc-800 shadow-sm text-red-600 dark:text-red-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
           >
             Denegados
           </button>

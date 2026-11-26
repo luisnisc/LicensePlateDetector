@@ -169,7 +169,7 @@ const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
 const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
 const lastAccessLog = new Map();
-const COOLDOWN_MS = 600000;
+const COOLDOWN_MS = 300000;
 
 
 app.post('/api/v1/login', (req, res) => {
@@ -304,6 +304,6 @@ app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
   }
 });
 
-server.listen(3000, () => {
+server.listen(3000, '0.0.0.0', () => {
   console.log('Backend LPR activo en puerto 3000 con SQLite y WebSockets');
 });
