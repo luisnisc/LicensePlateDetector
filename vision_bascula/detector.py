@@ -1,6 +1,8 @@
 import os
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import cv2
 import re
 import time
@@ -47,14 +49,12 @@ class Config:
             "rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101",
         )
     )
-    # VIDEO_SOURCE = 0
 
     # Límite de VRAM para PaddleOCR por instancia (en MB)
     GPU_MEM_MB: int = int(os.getenv("GPU_MEM_MB", "400"))
 
-    CONF_VEHICLE: float = 0.50
-    CONF_PLATE: float = 0.40
-    OCR_MIN_PROB: float = 0.70
+    CONF_PLATE: float = float(os.getenv("CONF_PLATE", "0.35"))
+    OCR_MIN_PROB: float = float(os.getenv("OCR_MIN_PROB", "0.70"))
 
     BLUR_THRESHOLD: float = 35.0
     MIN_PLATE_WIDTH: int = 20
@@ -64,11 +64,10 @@ class Config:
     PLATE_COOLDOWN_SECONDS: float = 45.0
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
-    # ROI_BOX = parse_roi(os.getenv("ROI_BOX", "260,250,2000,1200"))
-    ROI_BOX = None
+    ROI_BOX = parse_roi(os.getenv("ROI_BOX", "none"))
 
     STABILITY_FRAMES: int = 2
-    STABILITY_MOVEMENT_PX: int = 80
+    STABILITY_MOVEMENT_PX: int = 60
 
     RECONNECT_ATTEMPTS: int = 10
     RECONNECT_DELAY: float = 2.0
@@ -93,6 +92,37 @@ def connect():
 @sio.event
 def disconnect():
     print(f"[STREAM - {Config.CAMERA_ID}] Desconectado del WebSocket. Reintentando...")
+
+
+class PlateTracker:
+    """
+    Rastrea la estabilidad espacial de cada matrícula detectada de forma independiente,
+    evitando que dos matrículas simultáneas (tractora + remolque) se reinicien entre sí.
+    """
+
+    def __init__(self, required_frames=2, max_movement_px=60):
+        self.tracks = []
+        self.required_frames = required_frames
+        self.max_movement_px = max_movement_px
+
+    def is_stable(self, bbox):
+        now = time.time()
+        self.tracks = [t for t in self.tracks if (now - t["last_seen"]) < 1.5]
+
+        cx = (bbox[0] + bbox[2]) // 2
+        cy = (bbox[1] + bbox[3]) // 2
+
+        for track in self.tracks:
+            dx = abs(cx - track["centroid"][0])
+            dy = abs(cy - track["centroid"][1])
+            if dx <= self.max_movement_px and dy <= self.max_movement_px:
+                track["centroid"] = (cx, cy)
+                track["count"] += 1
+                track["last_seen"] = now
+                return track["count"] >= self.required_frames
+
+        self.tracks.append({"centroid": (cx, cy), "count": 1, "last_seen": now})
+        return self.required_frames <= 1
 
 
 class MultiPlateValidator:
@@ -241,9 +271,8 @@ class CameraCapture:
 class ALPRLogisticsSystem:
     def __init__(self):
         print(
-            f"[SISTEMA - {Config.CAMERA_ID}] Cargando modelos (VRAM PaddleOCR limitada a {Config.GPU_MEM_MB} MB)..."
+            f"[SISTEMA - {Config.CAMERA_ID}] Cargando detector directo de matrículas (VRAM PaddleOCR limitada a {Config.GPU_MEM_MB} MB)..."
         )
-        self.vehicle_model = YOLO("yolov8n.pt")
         self.plate_model = YOLO("license_plate_detector.pt")
         self.reader = PaddleOCR(
             use_angle_cls=False,
@@ -253,13 +282,14 @@ class ALPRLogisticsSystem:
             show_log=False,
         )
 
+        self.plate_tracker = PlateTracker(
+            required_frames=Config.STABILITY_FRAMES,
+            max_movement_px=Config.STABILITY_MOVEMENT_PX,
+        )
         self.validator = MultiPlateValidator()
         self.current_detections = []
         self.detection_lock = threading.Lock()
         self.frame_queue = queue.Queue(maxsize=3)
-
-        self.last_centroid = None
-        self.stable_count = 0
 
         self.session = requests.Session()
         retries = Retry(
@@ -272,7 +302,6 @@ class ALPRLogisticsSystem:
 
     def _warmup(self):
         dummy = np.zeros((640, 640, 3), dtype=np.uint8)
-        self.vehicle_model(dummy, verbose=False)
         self.plate_model(dummy, verbose=False)
 
     def is_blur(self, image):
@@ -308,12 +337,6 @@ class ALPRLogisticsSystem:
             return "REMOLQUE"
         return "TRACTORA"
 
-    def _point_in_roi(self, x, y):
-        if not Config.ROI_BOX:
-            return True
-        rx1, ry1, rx2, ry2 = Config.ROI_BOX
-        return rx1 <= x <= rx2 and ry1 <= y <= ry2
-
     def send_to_backend(self, plate_text, plate_type, confidence):
         payload = {
             "plate": plate_text,
@@ -348,41 +371,6 @@ class ALPRLogisticsSystem:
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         return clahe.apply(filtered)
 
-    def _select_target_vehicle(self, results_vehicles, render_data):
-        boxes_in_roi = []
-        for vb in results_vehicles.boxes:
-            vx1, vy1, vx2, vy2 = map(int, vb.xyxy[0])
-            cx, cy = (vx1 + vx2) // 2, (vy1 + vy2) // 2
-            if not self._point_in_roi(cx, cy):
-                render_data.append(
-                    {"type": "vehicle_ignored", "bbox": (vx1, vy1, vx2, vy2)}
-                )
-                continue
-            boxes_in_roi.append((vx1, vy1, vx2, vy2))
-            render_data.append({"type": "vehicle", "bbox": (vx1, vy1, vx2, vy2)})
-
-        if not boxes_in_roi:
-            return None
-        min_x1 = min(b[0] for b in boxes_in_roi)
-        min_y1 = min(b[1] for b in boxes_in_roi)
-        max_x2 = max(b[2] for b in boxes_in_roi)
-        max_y2 = max(b[3] for b in boxes_in_roi)
-        return (min_x1, min_y1, max_x2, max_y2)
-
-    def _update_stability(self, bbox):
-        centroid = ((bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2)
-        if self.last_centroid is not None:
-            dx = abs(centroid[0] - self.last_centroid[0])
-            dy = abs(centroid[1] - self.last_centroid[1])
-            if (
-                dx <= Config.STABILITY_MOVEMENT_PX
-                and dy <= Config.STABILITY_MOVEMENT_PX
-            ):
-                self.stable_count += 1
-            else:
-                self.stable_count = 0
-        self.last_centroid = centroid
-
     def _scan_plates(self, frame, search_bbox, render_data):
         vx1, vy1, vx2, vy2 = search_bbox
         crop = frame[vy1:vy2, vx1:vx2]
@@ -404,10 +392,22 @@ class ALPRLogisticsSystem:
             ):
                 continue
 
-            plate_conf = float(plate_box.conf[0])
             abs_px1, abs_py1 = vx1 + px1, vy1 + py1
             abs_px2, abs_py2 = vx1 + px2, vy1 + py2
+            abs_bbox = (abs_px1, abs_py1, abs_px2, abs_py2)
 
+            if not self.plate_tracker.is_stable(abs_bbox):
+                render_data.append({"type": "plate", "bbox": abs_bbox})
+                render_data.append(
+                    {
+                        "type": "text",
+                        "bbox": abs_bbox,
+                        "text": "ESTABILIZANDO...",
+                    }
+                )
+                continue
+
+            plate_conf = float(plate_box.conf[0])
             pad_w, pad_h = int(pw * 0.12), int(ph * 0.05)
             c_y1, c_y2 = max(0, py1 - pad_h), min(crop_h, py2 + pad_h)
             c_x1, c_x2 = max(0, px1 - pad_w), min(crop_w, px2 + pad_w)
@@ -436,13 +436,13 @@ class ALPRLogisticsSystem:
                                 "type": "plate_remolque"
                                 if plate_type == "REMOLQUE"
                                 else "plate",
-                                "bbox": (abs_px1, abs_py1, abs_px2, abs_py2),
+                                "bbox": abs_bbox,
                             }
                         )
                         render_data.append(
                             {
                                 "type": "text",
-                                "bbox": (abs_px1, abs_py1, abs_px2, abs_py2),
+                                "bbox": abs_bbox,
                                 "text": f"[{plate_type[:3]}] {clean_text} ({prob:.2f})",
                             }
                         )
@@ -468,37 +468,21 @@ class ALPRLogisticsSystem:
                 continue
 
             render_data = []
-            # Clases COCO: 2=car, 3=motorcycle, 5=bus, 7=truck
-            results_vehicles = self.vehicle_model(
-                frame, verbose=False, conf=Config.CONF_VEHICLE, classes=[2, 3, 5, 7]
-            )[0]
-            target_vehicle = self._select_target_vehicle(results_vehicles, render_data)
+            h, w = frame.shape[:2]
 
-            if target_vehicle is None:
-                self.stable_count = 0
-                self.last_centroid = None
-                with self.detection_lock:
-                    self.current_detections = render_data
-                continue
-
-            self._update_stability(target_vehicle)
-
-            if self.stable_count < Config.STABILITY_FRAMES:
-                render_data.append(
-                    {
-                        "type": "text",
-                        "bbox": target_vehicle,
-                        "text": "ESTABILIZANDO VEHICULO...",
-                    }
-                )
+            if Config.ROI_BOX:
+                rx1, ry1, rx2, ry2 = Config.ROI_BOX
+                search_bbox = (max(0, rx1), max(0, ry1), min(w, rx2), min(h, ry2))
             else:
-                self._scan_plates(frame, target_vehicle, render_data)
+                search_bbox = (0, 0, w, h)
+
+            self._scan_plates(frame, search_bbox, render_data)
 
             with self.detection_lock:
                 self.current_detections = render_data
 
     def start(self):
-        print(f"[SISTEMA - {Config.CAMERA_ID}] Iniciando pipeline...")
+        print(f"[SISTEMA - {Config.CAMERA_ID}] Iniciando pipeline directo...")
         threading.Thread(target=self.process_pipeline, daemon=True).start()
 
         try:
@@ -550,11 +534,7 @@ class ALPRLogisticsSystem:
 
             for item in render_data:
                 x1, y1, x2, y2 = item["bbox"]
-                if item["type"] == "vehicle":
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                elif item["type"] == "vehicle_ignored":
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (128, 128, 128), 1)
-                elif item["type"] == "plate":
+                if item["type"] == "plate":
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 200, 0), 2)
                 elif item["type"] == "plate_remolque":
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
