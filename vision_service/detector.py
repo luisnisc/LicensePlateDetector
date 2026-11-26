@@ -589,19 +589,31 @@ class ALPRSystem:
                 status_color,
                 2,
             )
+            #
+            # small_frame = cv2.resize(frame, (640, 360))
+            # ret_enc, encoded_image = cv2.imencode(
+            #     ".jpg", small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+            # )
+            # if ret_enc:
+            #     if sio.connected:
+            #         sio.emit(
+            #             "video_frame",
+            #             {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
+            #         )
+            #         print(f"[DEBUG] ¡Frame enviado ({Config.CAMERA_ID})!", end="\r")
+            h, w = frame.shape[:2]
+            target_w = 1280
+            if w > target_w:
+                scale = target_w / float(w)
+                stream_frame = cv2.resize(
+                    frame, (target_w, int(h * scale)), interpolation=cv2.INTER_AREA
+                )
+            else:
+                stream_frame = frame
 
-            small_frame = cv2.resize(frame, (640, 360))
             ret_enc, encoded_image = cv2.imencode(
-                ".jpg", small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+                ".jpg", stream_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
             )
-            if ret_enc:
-                if sio.connected:
-                    sio.emit(
-                        "video_frame",
-                        {"cam_id": Config.CAMERA_ID, "image": encoded_image.tobytes()},
-                    )
-                    print(f"[DEBUG] ¡Frame enviado ({Config.CAMERA_ID})!", end="\r")
-
             cv2.imshow("Sistema ALPR - Control de Acceso", frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
