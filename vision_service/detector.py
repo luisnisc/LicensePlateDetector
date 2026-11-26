@@ -33,8 +33,7 @@ def parse_source(src_str):
 class Config:
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:3000/api/v1/access")
     CAMERA_ID: str = os.getenv("CAMERA_ID", "BARRERA_ACCESO_01")
-    VIDEO_SOURCE = parse_source(os.getenv("VIDEO_SOURCE", "0"))
-    # VIDEO_SOURCE = "rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101"
+    VIDEO_SOURCE = "rtsp://admin:Filip%402807@10.255.40.85:554/Streaming/Channels/101"
 
     CONF_VEHICLE: float = 0.50
     CONF_PLATE: float = 0.40
@@ -50,8 +49,8 @@ class Config:
 
     CHAR_VOTE_MIN_AGREEMENT: float = 0.6
     PLATE_REGEX: str = None
-    # ROI_BOX = (260, 250, 2000, 1200)
-    ROI_BOX = None
+    ROI_BOX = (260, 250, 2000, 1200)
+   
 
     STABILITY_FRAMES: int = 2
     STABILITY_MOVEMENT_PX: int = 80

@@ -32,8 +32,8 @@ if exist "%VENV_ACTIVATE%" (
     exit /b 1
 )
 
-if not exist "%SERVICE_BASCULA%\lpr_registro.py" (
-    echo [ERROR] No se encontró lpr_registro.py en:
+if not exist "%SERVICE_BASCULA%\detector.py" (
+    echo [ERROR] No se encontró detector.py en:
     echo         "%SERVICE_BASCULA%"
     echo.
     pause
@@ -54,10 +54,10 @@ timeout /t 3 /nobreak >nul
 
 :: --- BÁSCULA (TRACTORA Y REMOLQUE) ---
 :: Nota: Si la contraseña RTSP lleva %40, dentro de un .bat debe escribirse como %%40
-start "ALPR - Báscula Tractora" cmd /k "pushd "%SERVICE_BASCULA%" && call "%VENV_ACTIVATE%" && set "CAMERA_ID=CAM_TRACTORA_01" && set "VIDEO_SOURCE=rtsp://admin:Filip%%402807@10.255.40.85:554/Streaming/Channels/101" && python lpr_registro.py"
+start "ALPR - Báscula Tractora" cmd /k "pushd "%SERVICE_BASCULA%" && call "%VENV_ACTIVATE%" && set "CAMERA_ID=CAM_TRACTORA_01" && set "VIDEO_SOURCE=0" && python detector.py"
 timeout /t 3 /nobreak >nul
 
-start "ALPR - Báscula Remolque" cmd /k "pushd "%SERVICE_BASCULA%" && call "%VENV_ACTIVATE%" && set "CAMERA_ID=CAM_REMOLQUE_02" && set "VIDEO_SOURCE=rtsp://admin:Filip%%402807@10.255.40.86:554/Streaming/Channels/101" && python lpr_registro.py"
+start "ALPR - Báscula Remolque" cmd /k "pushd "%SERVICE_BASCULA%" && call "%VENV_ACTIVATE%" && set "CAMERA_ID=CAM_REMOLQUE_02" && set "VIDEO_SOURCE=1" && python detector.py"
 
 echo [ÉXITO] Las 4 instancias (Accesos y Báscula) se han iniciado correctamente.
 popd
