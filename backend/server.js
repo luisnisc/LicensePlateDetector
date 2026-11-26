@@ -137,8 +137,18 @@ db.exec(`
         username TEXT UNIQUE,
         password TEXT
     );
+    CREATE TABLE IF NOT EXISTS bascula_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plate TEXT NOT NULL,
+        plate_type TEXT NOT NULL DEFAULT 'TRACTORA',
+        camera_id TEXT NOT NULL,
+        confidence REAL,
+        timestamp TEXT NOT NULL
+  );
 `);
-
+db.exec(`
+  
+`);
 try {
   db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
 } catch (e) {
@@ -168,6 +178,8 @@ const getAllLogsStmt = db.prepare('SELECT * FROM access_logs ORDER BY id DESC');
 const cleanAllLogsStmt = db.prepare('DELETE FROM access_logs');
 const cleanLogsByCameraStmt = db.prepare('DELETE FROM access_logs WHERE camera_id = ?');
 
+const lastBasculaLog = new Map();
+const BASCULA_COOLDOWN_MS = 20000; // 20s por matrícula + cámara
 const lastAccessLog = new Map();
 const COOLDOWN_MS = 300000;
 
@@ -302,6 +314,90 @@ app.delete('/api/v1/logs', authenticateHybrid, requireAdmin, (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: 'Error interno al borrar logs' });
   }
+
+});
+
+
+app.post('/api/v1/bascula/read', authenticateHybrid, (req, res) => {
+  const { plate, plate_type, confidence, camera_id } = req.body;
+
+  if (!plate || typeof plate !== 'string') {
+    return res.status(400).json({ error: 'Matrícula no proporcionada' });
+  }
+
+  const cleanPlate = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  if (!/\d/.test(cleanPlate) || cleanPlate.length < 4) {
+    return res.status(400).json({ error: 'Formato de matrícula inválido' });
+  }
+
+  const camId = camera_id || 'CAM_LOGISTICA';
+  const type = plate_type === 'REMOLQUE' ? 'REMOLQUE' : 'TRACTORA';
+  const now = Date.now();
+  const debounceKey = `${cleanPlate}_${camId}`;
+
+  const lastTime = lastBasculaLog.get(debounceKey) || 0;
+  if (now - lastTime < BASCULA_COOLDOWN_MS) {
+    return res.status(200).json({ status: 'IGNORED_COOLDOWN', plate: cleanPlate });
+  }
+  lastBasculaLog.set(debounceKey, now);
+
+  const tzOffsetMs = new Date().getTimezoneOffset() * 60000;
+  const localTimestamp = new Date(now - tzOffsetMs).toISOString().slice(0, -1);
+
+  const stmt = db.prepare(`
+    INSERT INTO bascula_logs (plate, plate_type, camera_id, confidence, timestamp)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const info = stmt.run(cleanPlate, type, camId, confidence || 0, localTimestamp);
+
+  const newEntry = {
+    id: info.lastInsertRowid,
+    plate: cleanPlate,
+    plate_type: type,
+    camera_id: camId,
+    confidence: confidence || 0,
+    timestamp: localTimestamp,
+  };
+
+  io.emit('new_bascula_log', newEntry);
+
+  return res.status(201).json({ status: 'REGISTERED', data: newEntry });
+});
+
+app.get('/api/v1/bascula/logs', (req, res) => {
+  const { camera_id, plate_type } = req.query;
+  let query = 'SELECT * FROM bascula_logs';
+  const conditions = [];
+  const params = [];
+
+  if (camera_id) {
+    conditions.push('camera_id = ?');
+    params.push(camera_id);
+  }
+  if (plate_type) {
+    conditions.push('plate_type = ?');
+    params.push(plate_type);
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY id DESC LIMIT 200';
+
+  const rows = db.prepare(query).all(...params);
+  res.json(rows);
+});
+
+app.delete('/api/v1/bascula/logs', (req, res) => {
+  const { camera_id } = req.query;
+  if (camera_id) {
+    db.prepare('DELETE FROM bascula_logs WHERE camera_id = ?').run(camera_id);
+  } else {
+    db.prepare('DELETE FROM bascula_logs').run();
+  }
+  io.emit('bascula_logs_cleared', { camera_id: camera_id || null });
+  res.json({ message: 'Registros logísticos eliminados' });
 });
 
 server.listen(3000, '0.0.0.0', () => {

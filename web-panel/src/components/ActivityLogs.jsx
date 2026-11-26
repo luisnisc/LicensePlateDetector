@@ -50,7 +50,7 @@ export function ActivityLogs({ logs, API_URL, customSwal, isAdmin, titleLog, cam
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">Actividad</h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registros de accesos: '} {filteredLogs.length}  </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">{titleLog || 'Registro de accesos'}: {filteredLogs.length}</p>
         </div>
         <div className="flex items-center gap-3">
           {isAdmin && (
