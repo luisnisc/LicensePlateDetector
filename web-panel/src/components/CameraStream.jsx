@@ -148,7 +148,7 @@ export function CameraStream({ isAdmin, titleCam, cameraId }) {
         createPortal(
           <div
             onClick={() => setIsFullscreen(false)}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -182,7 +182,7 @@ export function CameraStream({ isAdmin, titleCam, cameraId }) {
 
             <div
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-6xl max-h-[85vh] bg-zinc-950 rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl flex items-center justify-center"
+              className="relative w-full max-w-8xl max-h-[90vh] bg-zinc-950 rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl flex items-center justify-center"
             >
               <canvas
                 ref={fullscreenCanvasRef}
