@@ -214,7 +214,7 @@ export function BasculaView({
       </div>
 
       {/* BLOQUE 1: Últimas matrículas en grande (Tractora + Remolque) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 select-none">
         {/* Tarjeta Tractora (Placa Blanca) */}
         <div className="hover:border-emerald-400 hover:animate-none  duration-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
           <div className="flex justify-between items-center mb-3">
@@ -237,7 +237,7 @@ export function BasculaView({
                 <div className="bg-blue-700 text-white px-2.5 flex flex-col justify-end pb-1.5 font-bold text-xs">
                   E
                 </div>
-                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-all">
+                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none">
                   {latestTractor.plate}
                 </span>
               </div>
@@ -279,7 +279,7 @@ export function BasculaView({
                 <div className="bg-blue-700 text-white px-2.5 flex flex-col justify-end pb-1.5 font-bold text-xs">
                   E
                 </div>
-                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-all">
+                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none">
                   {latestTrailer.plate}
                 </span>
               </div>
