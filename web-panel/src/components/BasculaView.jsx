@@ -16,6 +16,37 @@ export function BasculaView({
   const [filterType, setFilterType] = useState('ALL'); // 'ALL' | 'TRACTORA' | 'REMOLQUE'
   const [searchPlate, setSearchPlate] = useState('');
 
+  const copyPlateToClipboard = async (plateText, label) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(plateText);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = plateText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      customSwal.fire({
+        title: 'Matrícula Copiada',
+        text: `La matrícula de ${label} (${plateText}) se ha copiado correctamente.`,
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        showConfirmButton: false,
+        timer: 2500,
+        timerProgressBar: true,
+      });
+    } catch (err) {
+      console.error('Error al copiar matrícula:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchInitialLogs = async () => {
       try {
@@ -239,21 +270,8 @@ export function BasculaView({
                   E
                 </div>
                 <span className="cursor-pointer px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none"
-                  onClick={() => {
-                    customSwal.fire({
-                      title: "Matrícula Copiada",
-                      text: "La matrícula de la tractora se ha copiado correctamente.",
-                      toast: true,
-                      position: "top-end",
-                      icon: "info",
-                      showConfirmButton: false,
-                      timer: 2500,
-                      timerProgressBar: true
-                    });
+                  onClick={() => copyPlateToClipboard(latestTractor.plate, 'la tractora')}
 
-
-                    navigator.clipboard.writeText(latestTrailer.plate)
-                  }}
                 >
                   {latestTractor.plate}
                 </span>
@@ -297,20 +315,7 @@ export function BasculaView({
                   E
                 </div>
                 <span className="cursor-pointer px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none"
-                  onClick={() => {
-                    customSwal.fire({
-                      title: "Matrícula Copiada",
-                      text: "La matrícula del remolque se ha copiado correctamente.",
-                      toast: true,
-                      position: "top-end",
-                      icon: "info",
-                      showConfirmButton: false,
-                      timer: 2500,
-                      timerProgressBar: true
-                    });
-
-                    navigator.clipboard.writeText(latestTrailer.plate)
-                  }}
+                  onClick={() => copyPlateToClipboard(latestTrailer.plate, 'el remolque')}
                 >
                   {latestTrailer.plate}
                 </span>
@@ -440,6 +445,6 @@ export function BasculaView({
           </ul>
         )}
       </div>
-    </div>
+    </div >
   );
 }
