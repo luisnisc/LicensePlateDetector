@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { CameraStream } from './CameraStream';
+import Swal from 'sweetalert2';
 
 export function BasculaView({
   socket: externalSocket,
@@ -237,7 +238,23 @@ export function BasculaView({
                 <div className="bg-blue-700 text-white px-2.5 flex flex-col justify-end pb-1.5 font-bold text-xs">
                   E
                 </div>
-                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none">
+                <span className="cursor-pointer px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none"
+                  onClick={() => {
+                    customSwal.fire({
+                      title: "Matrícula Copiada",
+                      text: "La matrícula de la tractora se ha copiado correctamente.",
+                      toast: true,
+                      position: "top-end",
+                      icon: "info",
+                      showConfirmButton: false,
+                      timer: 2500,
+                      timerProgressBar: true
+                    });
+
+
+                    navigator.clipboard.writeText(latestTrailer.plate)
+                  }}
+                >
                   {latestTractor.plate}
                 </span>
               </div>
@@ -279,7 +296,22 @@ export function BasculaView({
                 <div className="bg-blue-700 text-white px-2.5 flex flex-col justify-end pb-1.5 font-bold text-xs">
                   E
                 </div>
-                <span className="px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none">
+                <span className="cursor-pointer px-6 py-2 font-mono font-black text-4xl sm:text-5xl tracking-widest text-zinc-950 select-none"
+                  onClick={() => {
+                    customSwal.fire({
+                      title: "Matrícula Copiada",
+                      text: "La matrícula del remolque se ha copiado correctamente.",
+                      toast: true,
+                      position: "top-end",
+                      icon: "info",
+                      showConfirmButton: false,
+                      timer: 2500,
+                      timerProgressBar: true
+                    });
+
+                    navigator.clipboard.writeText(latestTrailer.plate)
+                  }}
+                >
                   {latestTrailer.plate}
                 </span>
               </div>
